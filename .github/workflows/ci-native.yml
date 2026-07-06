@@ -87,7 +87,6 @@ jobs:
         with:
           distribution: graalvm
           java-version: "21"
-          components: native-image
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
@@ -133,10 +132,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+          if ! gh release view "$TAG_NAME" --repo "$REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG_NAME" \
+              --repo "$REPOSITORY" \
               --title "dotbot-scala $TAG_NAME" \
               --notes "Linux native images for amd64 and arm64."
           fi
-          gh release upload "$TAG_NAME" dist/* --clobber
+          gh release upload "$TAG_NAME" dist/* --repo "$REPOSITORY" --clobber
