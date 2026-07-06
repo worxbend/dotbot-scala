@@ -1,0 +1,142 @@
+name: Test and Native Image
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: JVM tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Scala dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.ivy2/cache
+            ~/.cache/mill
+            out
+          key: ${{ runner.os }}-java-21-mill-${{ hashFiles('build.mill', 'mill') }}
+          restore-keys: |
+            ${{ runner.os }}-java-21-mill-
+
+      - name: Verify Mill wrapper
+        run: |
+          test -x ./mill
+          ./mill --version
+
+      - name: Compile
+        run: ./mill app.compile
+
+      - name: Test
+        run: ./mill app.test
+
+      - name: Build JVM assembly
+        run: ./mill app.writeAssembly --dest dist/dotbot-scala.jar
+
+      - name: Upload JVM assembly
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotbot-scala-jvm
+          path: dist/dotbot-scala.jar
+          if-no-files-found: error
+
+  native:
+    name: Native image ${{ matrix.arch }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download JVM assembly
+        uses: actions/download-artifact@v4
+        with:
+          name: dotbot-scala-jvm
+          path: dist
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: graalvm
+          java-version: "21"
+          components: native-image
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image
+        run: |
+          native-image --no-fallback -jar dist/dotbot-scala.jar -o dist/dotbot
+
+      - name: Smoke test
+        run: |
+          ./dist/dotbot --version
+          ./dist/dotbot plan -c examples/install.conf.yaml --output json
+
+      - name: Package artifact
+        run: |
+          tar -C dist -czf "dist/dotbot-linux-${{ matrix.arch }}.tar.gz" dotbot
+          sha256sum "dist/dotbot-linux-${{ matrix.arch }}.tar.gz" \
+            > "dist/dotbot-linux-${{ matrix.arch }}.tar.gz.sha256"
+
+      - name: Upload native artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotbot-linux-${{ matrix.arch }}
+          path: |
+            dist/dotbot-linux-${{ matrix.arch }}.tar.gz
+            dist/dotbot-linux-${{ matrix.arch }}.tar.gz.sha256
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: native
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dotbot-linux-*
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "dotbot-scala $TAG_NAME" \
+              --notes "Linux native images for amd64 and arm64."
+          fi
+          gh release upload "$TAG_NAME" dist/* --clobber
