@@ -9,7 +9,7 @@ import mill.scalalib.scalafmt.ScalafmtModule
 
 object Versions:
   val scala = "3.8.4"
-  val dotbotScala = "0.1.0"
+  val dotbotScala = "0.1.1"
   val osLib = "0.11.8"
   val upickle = "4.4.3"
   val fansi = "0.5.1"
