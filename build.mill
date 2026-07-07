@@ -1,6 +1,8 @@
 //| mill-version: 1.1.6
+//| mvnDeps: ["com.goyeau::mill-scalafix::0.6.0"]
 package build
 
+import com.goyeau.mill.scalafix.ScalafixModule
 import mill.*
 import scalalib.*
 import mill.scalalib.scalafmt.ScalafmtModule
@@ -10,44 +12,100 @@ object Versions:
   val dotbotScala = "0.1.0"
   val osLib = "0.11.8"
   val upickle = "4.4.3"
-  val json5Java = "2.0.0"
-  val pprint = "0.9.6"
   val fansi = "0.5.1"
   val ox = "1.0.5"
   val picocli = "4.7.7"
-  val snakeyamlEngine = "3.0.1"
+  val scalaYaml = "0.3.2"
+  val lightbendConfig = "1.4.9"
+  val pureConfig = "0.17.10"
   val tomlj = "1.1.1"
   val munit = "1.1.1"
+  val munitScalacheck = "1.1.0"
 
-object app extends ScalaModule with ScalafmtModule:
-  private def workspaceRoot: os.Path =
+trait DotbotScalaModule extends ScalaModule with ScalafmtModule:
+  protected def workspaceRoot: os.Path =
     sys.env.get("PWD").map(os.Path(_)).getOrElse(os.Path(sys.props("user.dir")))
 
-  def scalaVersion = Versions.scala
+  protected def packageSource(name: String): os.Path =
+    workspaceRoot / "app" / "src" / "io" / "worxbend" / "dotbot" / name
 
-  def mainClass = Some("io.worxbend.dotbot.Main")
+  protected def packageRootSource(fileName: String): os.Path =
+    workspaceRoot / "app" / "src" / "io" / "worxbend" / "dotbot" / fileName
+
+  def scalaVersion = Versions.scala
 
   def scalacOptions = Seq(
     "-deprecation",
     "-feature",
     "-unchecked",
     "-Wsafe-init",
-  )
+    "-Wunused:all",
+    "-Wvalue-discard",
+    "-Wnonunit-statement",
+    "-source:future",
+  ) ++ ciScalacOptions
+
+  private def ciScalacOptions: Seq[String] =
+    if sys.env.get("CI").contains("true") then Seq("-Werror")
+    else Seq.empty
 
   def javacOptions = Seq("--release", "21")
 
-  def forkEnv = Map("DOTBOT_SCALA_VERSION" -> Versions.dotbotScala)
+object core extends DotbotScalaModule with ScalafixModule:
+  override def sources = Task.Sources(packageSource("core"))
+
+object infra extends DotbotScalaModule:
+  override def moduleDeps = Seq(core)
+
+  override def sources = Task.Sources(
+    packageSource("config"),
+    packageSource("fs"),
+    packageSource("logging"),
+    packageSource("shell"),
+  )
 
   def mvnDeps = Seq(
     mvn"com.lihaoyi::os-lib:${Versions.osLib}",
-    mvn"com.lihaoyi::upickle:${Versions.upickle}",
-    mvn"de.marhali:json5-java:${Versions.json5Java}",
-    mvn"com.lihaoyi::pprint:${Versions.pprint}",
     mvn"com.lihaoyi::fansi:${Versions.fansi}",
     mvn"com.softwaremill.ox::core:${Versions.ox}",
-    mvn"info.picocli:picocli:${Versions.picocli}",
-    mvn"org.snakeyaml:snakeyaml-engine:${Versions.snakeyamlEngine}",
+    mvn"org.virtuslab::scala-yaml:${Versions.scalaYaml}",
+    mvn"com.typesafe:config:${Versions.lightbendConfig}",
+    mvn"com.github.pureconfig::pureconfig-core:${Versions.pureConfig}",
     mvn"org.tomlj:tomlj:${Versions.tomlj}",
+  )
+
+object app extends DotbotScalaModule:
+  override def moduleDeps = Seq(core, infra)
+
+  override def sources = Task.Sources(
+    packageRootSource("Main.scala"),
+    packageSource("app"),
+    packageSource("cli"),
+  )
+
+  def mainClass = Some("io.worxbend.dotbot.Main")
+
+  def forkEnv = Map("DOTBOT_SCALA_VERSION" -> Versions.dotbotScala)
+
+  override def generatedSources = Task:
+    super.generatedSources() ++ Seq(buildInfoSources())
+
+  def buildInfoSources = Task:
+    val out = Task.dest / "io" / "worxbend" / "dotbot" / "app" / "BuildInfo.scala"
+    os.write.over(
+      out,
+      s"""package io.worxbend.dotbot.app
+         |
+         |object BuildInfo:
+         |  val version: String = "${Versions.dotbotScala}"
+         |""".stripMargin,
+      createFolders = true,
+    )
+    PathRef(Task.dest)
+
+  def mvnDeps = Seq(
+    mvn"com.lihaoyi::upickle:${Versions.upickle}",
+    mvn"info.picocli:picocli:${Versions.picocli}",
   )
 
   def writeAssembly(dest: String = "dist/dotbot-scala.jar") = Task.Command:
@@ -57,6 +115,9 @@ object app extends ScalaModule with ScalafmtModule:
     println(out)
 
   object test extends ScalaTests with ScalafmtModule:
-    def mvnDeps = Seq(mvn"org.scalameta::munit:${Versions.munit}")
+    def mvnDeps = Seq(
+      mvn"org.scalameta::munit:${Versions.munit}",
+      mvn"org.scalameta::munit-scalacheck:${Versions.munitScalacheck}",
+    )
 
     def testFramework = "munit.Framework"

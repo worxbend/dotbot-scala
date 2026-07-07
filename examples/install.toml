@@ -1,4 +1,4 @@
-# TOML is object-based, so dotbot-go reads the ordered task list from `tasks`.
+# TOML is object-based, so dotbot-scala reads the ordered task list from `tasks`.
 
 tasks = [
   { defaults = { link = { create = true, relink = true, relative = false } } },

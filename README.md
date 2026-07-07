@@ -13,9 +13,11 @@ Supported directives:
 Supported config formats:
 
 - YAML: `.yaml`, `.yml`
+- HOCON: `.conf`, `.hocon`
 - JSON: `.json`
-- JSON5: `.json5`
 - TOML: `.toml` with tasks under `tasks` or `task`
+
+JSON5 is unsupported. `.json5` files are rejected with the normal unsupported-format error.
 
 ## Build
 
@@ -35,6 +37,16 @@ Build a GraalVM native image when `native-image` is available:
 native-image --no-fallback -jar dist/dotbot-scala.jar -o dist/dotbot
 ```
 
+## Scala API Docs
+
+Generate Scaladoc output with:
+
+```bash
+./mill app.doc
+```
+
+You can also generate docs directly with `scaladoc` via Mill if you prefer a custom output directory; see `build.mill` task wiring for the `app.doc` target.
+
 ## Run
 
 ```bash
@@ -42,6 +54,26 @@ native-image --no-fallback -jar dist/dotbot-scala.jar -o dist/dotbot
 ./mill app.run validate -c examples/install.conf.yaml
 ./mill app.run plan -c examples/install.conf.yaml --output json
 ```
+
+## Golden Tests
+
+The `app/test/src/io/worxbend/dotbot/golden` suite is the behavior-preservation harness for refactors. It runs sandboxed CLI/app scenarios and snapshots exit code, stdout/stderr, and filesystem state. Run it with the normal test command:
+
+```bash
+./mill app.test
+```
+
+## Architecture
+
+The codebase is being refactored toward a ports-and-adapters shape:
+
+- `core` holds domain model types, directive specs, planning, outcomes, and directive interpreters.
+- `infra` holds config parsing plus filesystem, shell, and logging adapters.
+- `app` holds the CLI entry point and composition root.
+
+Config is treated as a small program: validation and planning interpret the typed directives without applying effects, while apply mode interprets the same directives through filesystem and shell ports.
+
+The Mill build enforces this as staged `core`, `infra`, and `app` modules while source files remain under the existing package tree. See `ARCHITECTURE.md` for the decision log and remaining work.
 
 ## Native CI
 

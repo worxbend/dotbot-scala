@@ -47,6 +47,9 @@ jobs:
       - name: Compile
         run: ./mill app.compile
 
+      - name: Lint core
+        run: ./mill core.fix --check
+
       - name: Test
         run: ./mill app.test
 

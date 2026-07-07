@@ -2,6 +2,8 @@ package io.worxbend.dotbot
 
 import io.worxbend.dotbot.app.AppOptions
 import io.worxbend.dotbot.app.DotbotApp
+import io.worxbend.dotbot.app.OutputFormat
+import io.worxbend.dotbot.app.RunMode
 
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -21,7 +23,7 @@ class DotbotAppSuite extends munit.FunSuite:
 
     val output = ByteArrayOutputStream()
     val code = DotbotApp.run(
-      AppOptions(configFiles = Vector(config.toString), plan = true, output = "json", noColor = true),
+      AppOptions(configFiles = Vector(config.toString), mode = RunMode.Plan(OutputFormat.Json), noColor = true),
       PrintStream(output),
     )
 

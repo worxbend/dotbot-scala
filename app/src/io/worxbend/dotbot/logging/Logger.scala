@@ -1,7 +1,12 @@
 package io.worxbend.dotbot.logging
 
+import io.worxbend.dotbot.core.Log
+
 import java.io.PrintStream
 
+/**
+ * Logging severity levels used by the CLI and core runtime.
+ */
 enum Level(val rank: Int):
   case Debug extends Level(0)
   case Info extends Level(1)
@@ -9,14 +14,57 @@ enum Level(val rank: Int):
   case Warning extends Level(3)
   case Error extends Level(4)
 
-final class Logger(out: PrintStream, private var minimum: Level = Level.Action):
-  private var color = supportsColor(out)
+/**
+ * Whether pretty symbolic output (emoji badges and icons) is enabled.
+ *
+ * @param enabled true when emoji output should be rendered.
+ */
+final case class SymbolSupport(enabled: Boolean)
 
-  def setLevel(level: Level): Unit =
-    minimum = level
+/**
+ * Detects whether symbolic output can be used in the current terminal.
+ * This mirrors the environment guards used for color rendering.
+ */
+object SymbolSupport:
+  def detect: SymbolSupport =
+    SymbolSupport(
+      sys.env.get("NO_EMOJI").isEmpty &&
+        !sys.env.get("TERM").exists(_.equalsIgnoreCase("dumb")) &&
+        Option(System.console()).nonEmpty,
+    )
 
-  def useColor(enabled: Boolean): Unit =
-    color = enabled
+/**
+ * Whether ANSI color rendering is enabled.
+ *
+ * @param enabled true when the terminal supports ANSI color and output is not disabled by env.
+ */
+final case class ColorSupport(enabled: Boolean)
+
+/**
+ * Detects whether ANSI color output is expected to render in the current environment.
+ */
+object ColorSupport:
+  def detect: ColorSupport =
+    ColorSupport(
+      sys.env.get("NO_COLOR").isEmpty &&
+        !sys.env.get("TERM").exists(_.equalsIgnoreCase("dumb")) &&
+        Option(System.console()).nonEmpty,
+    )
+
+/**
+ * Structured, leveled logger for CLI-facing output.
+ *
+ * @param out destination print stream.
+ * @param minimum minimum level to emit.
+ * @param color enable ANSI colors for labels/messages.
+ * @param stylishSymbols include icon badges for levels when enabled.
+ */
+final class Logger(
+  out: PrintStream,
+  minimum: Level,
+  color: Boolean,
+  private[logging] val stylishSymbols: Boolean = false,
+) extends Log:
 
   def debug(message: String): Unit = log(Level.Debug, message)
 
@@ -30,15 +78,26 @@ final class Logger(out: PrintStream, private var minimum: Level = Level.Action):
 
   private def log(level: Level, message: String): Unit =
     if level.rank >= minimum.rank then
-      out.println(s"${style(level)}${label(level)}${reset} ${messageStyle(level)}$message$reset")
+      val badge = s"${style(level)}${symbol(level)}${label(level)}${reset}"
+      out.println(s"$badge ${messageStyle(level)}$message$reset")
 
   private def label(level: Level): String =
     level match
-      case Level.Debug   => "debug"
-      case Level.Info    => "info "
-      case Level.Action  => "step "
-      case Level.Warning => "warn "
-      case Level.Error   => "error"
+      case Level.Debug   => "debug "
+      case Level.Info    => "info  "
+      case Level.Action  => "step  "
+      case Level.Warning => "warn  "
+      case Level.Error   => "error "
+
+  private def symbol(level: Level): String =
+    if stylishSymbols then
+      level match
+        case Level.Debug   => "🐞 "
+        case Level.Info    => "🪄 "
+        case Level.Action  => "🚀 "
+        case Level.Warning => "⚠️  "
+        case Level.Error   => "💥 "
+    else "    "
 
   private def style(level: Level): String =
     if !color then ""
@@ -56,7 +115,30 @@ final class Logger(out: PrintStream, private var minimum: Level = Level.Action):
   private def reset: String =
     if color then fansi.Attr.Reset.escape else ""
 
-  private def supportsColor(out: PrintStream): Boolean =
-    sys.env.get("NO_COLOR").isEmpty &&
-      !sys.env.get("TERM").exists(_.equalsIgnoreCase("dumb")) &&
-      System.console() != null
+object Logger:
+  /**
+   * Create a logger with default level (`Action`) and auto-detected
+   * color + symbol capabilities.
+   */
+  def apply(out: PrintStream): Logger =
+    Logger(out, Level.Action, ColorSupport.detect.enabled, SymbolSupport.detect.enabled)
+
+  /**
+   * Create a logger with an explicit minimum level and auto-detected
+   * color + symbol capabilities.
+   */
+  def apply(out: PrintStream, minimum: Level): Logger =
+    Logger(out, minimum, ColorSupport.detect.enabled, SymbolSupport.detect.enabled)
+
+  /**
+   * Create a logger with an explicit minimum level and color preference.
+   * Symbol rendering remains auto-detected.
+   */
+  def apply(out: PrintStream, minimum: Level, color: Boolean): Logger =
+    Logger(out, minimum, color, SymbolSupport.detect.enabled)
+
+  /**
+   * Create a logger with explicit level, color and symbol preferences.
+   */
+  def apply(out: PrintStream, minimum: Level, color: Boolean, symbols: Boolean): Logger =
+    new Logger(out, minimum, color, symbols)

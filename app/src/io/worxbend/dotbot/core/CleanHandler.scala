@@ -1,102 +1,68 @@
 package io.worxbend.dotbot.core
 
-import io.worxbend.dotbot.config.ConfigValue
-
 import java.nio.file.Paths
 
-object CleanHandler extends Handler:
-  def canHandle(directive: String): Boolean = directive == "clean"
+final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
 
-  override def validate(ctx: RuntimeContext, directive: String, data: ConfigValue): Either[String, Unit] =
-    data.asMap match
-      case Some(map) =>
-        val bad = map.collectFirst {
-          case (target, value) if value != ConfigValue.NullValue && value.asMap.isEmpty =>
-            s"clean directive options for $target must be a map"
-        }
-        bad.toLeft(())
-      case None =>
-        data.asArray match
-          case Some(items) =>
-            if items.forall(_.asString.nonEmpty) then Right(())
-            else Left("clean directive item must be a string")
-          case None => Left("clean directive must be a list or map")
+  def directive: Directive = Directive.Clean
 
-  override def plan(ctx: RuntimeContext, directive: String, data: ConfigValue): Either[String, Vector[Operation]] =
-    validate(ctx, directive, data).map { _ =>
-      data.asMap match
-        case Some(map) => Values.sortedKeys(map).map(Operation(directive, _))
-        case None      => data.asArray.toVector.flatten.flatMap(_.asString).map(Operation(directive, _))
-    }
+  protected def decoder: ConfigDecoder[CleanSpec] =
+    DirectiveDecoders.cleanSpecDecoder
 
-  def handle(ctx: RuntimeContext, directive: String, data: ConfigValue): Either[String, Boolean] =
-    val defaults = ctx.defaults.get("clean").flatMap(_.asMap).getOrElse(Map.empty)
-    val defaultForce = Values.boolValue(defaults, "force", false)
-    val defaultRecursive = Values.boolValue(defaults, "recursive", false)
+  override def plan(spec: CleanSpec): Vector[Operation] =
+    spec.entries.collect { case CleanEntry.Target(target, _, _) => Operation(Directive.Clean, target) }
 
-    data.asMap match
-      case Some(map) =>
-        val success = Values.sortedKeys(map).foldLeft(true) { (ok, target) =>
-          val local = map(target).asMap.getOrElse(Map.empty)
-          val force = Values.boolValue(local, "force", defaultForce)
-          val recursive = Values.boolValue(local, "recursive", defaultRecursive)
-          cleanTarget(ctx, target, force, recursive) && ok
-        }
-        Right(finish(ctx, success, "All targets have been cleaned", "Some targets were not successfully cleaned"))
-      case None =>
-        data.asArray match
-          case None => Left("clean directive must be a list or map")
-          case Some(items) =>
-            val success = items.foldLeft(true) { (ok, item) =>
-              item.asString.exists(cleanTarget(ctx, _, defaultForce, defaultRecursive)) && ok
-            }
-            Right(finish(ctx, success, "All targets have been cleaned", "Some targets were not successfully cleaned"))
+  override protected def entries(spec: CleanSpec): Vector[CleanEntry] =
+    spec.entries
 
-  private def cleanTarget(ctx: RuntimeContext, target: String, force: Boolean, recursive: Boolean): Boolean =
+  override protected def executeEntry(ctx: RuntimeContext, entry: CleanEntry): Outcome =
+    entry match
+      case CleanEntry.Target(target, force, recursive) => cleanTarget(ctx, target, force, recursive)
+      case CleanEntry.Invalid                         => Outcome.Failed
+
+  override protected def allSuccessfulMessage: String =
+    "All targets have been cleaned"
+
+  override protected def someFailedMessage: String =
+    "Some targets were not successfully cleaned"
+
+  private def cleanTarget(ctx: RuntimeContext, target: String, force: Boolean, recursive: Boolean): Outcome =
     val dir = PathUtil.absFrom(ctx.baseDirectory, target)
     if !ctx.fs.isDir(dir) then
       ctx.log.debug(s"Ignoring nonexistent directory $target")
-      true
+      Outcome.Ok
     else
-      ctx.fs.listDir(dir) match
-        case Left(error) =>
-          ctx.log.warning(s"Failed to list directory $dir")
-          ctx.log.debug(error.getMessage)
-          false
-        case Right(names) =>
-          names.foldLeft(true) { (ok, name) =>
-            val path = PathUtil.join(dir, name)
-            val recursiveOk =
-              if recursive && ctx.fs.isDir(path) && !ctx.fs.isSymlink(path) then cleanTarget(ctx, path, force, recursive)
-              else true
+      ctx.withFilesystem(ctx.fs.listDir(dir), _ => s"Failed to list directory $dir").fold(Outcome.Failed) { names =>
+        names.foldLeft(Outcome.Ok) { (outcome, name) =>
+          val path = PathUtil.join(dir, name)
+          val recursiveOutcome =
+            if recursive && ctx.fs.isDir(path) && !ctx.fs.isSymlink(path) then cleanTarget(ctx, path, force, recursive)
+            else Outcome.Ok
 
-            val removeOk =
-              if !ctx.fs.exists(path) && ctx.fs.isSymlink(path) then removeBrokenLink(ctx, path, force)
-              else true
+          val removeOutcome =
+            if !ctx.fs.exists(path) && ctx.fs.isSymlink(path) then removeBrokenLink(ctx, path, force)
+            else Outcome.Ok
 
-            recursiveOk && removeOk && ok
-          }
+          outcome.combine(recursiveOutcome).combine(removeOutcome)
+        }
+      }
 
-  private def removeBrokenLink(ctx: RuntimeContext, path: String, force: Boolean): Boolean =
-    ctx.fs.readlink(path) match
-      case Left(_) => false
-      case Right(targetPath) =>
+  private def removeBrokenLink(ctx: RuntimeContext, path: String, force: Boolean): Outcome =
+    ctx.withFilesystem(ctx.fs.readlink(path), _ => s"Failed to inspect invalid link $path") match
+      case None => Outcome.Failed
+      case Some(targetPath) =>
         val pointsAt = linkTargetPath(path, targetPath)
         if inDirectory(pointsAt, ctx.baseDirectory) || force then
           if ctx.options.dryRun then
             ctx.log.action(s"Would remove invalid link $path -> $pointsAt")
-            true
+            Outcome.Ok
           else
             ctx.log.action(s"Removing invalid link $path -> $pointsAt")
-            ctx.fs.remove(path) match
-              case Right(_) => true
-              case Left(error) =>
-                ctx.log.warning(s"Failed to remove invalid link $path")
-                ctx.log.debug(error.getMessage)
-                false
+            if ctx.withFilesystem(ctx.fs.remove(path), _ => s"Failed to remove invalid link $path").isEmpty then Outcome.Failed
+            else Outcome.Ok
         else
           ctx.log.info(s"Link $path -> $pointsAt not removed.")
-          true
+          Outcome.Ok
 
   private def inDirectory(path: String, directory: String): Boolean =
     val dir = Paths.get(directory).normalize().toString

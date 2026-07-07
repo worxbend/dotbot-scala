@@ -1,33 +1,18 @@
 package io.worxbend.dotbot.fs
 
+import io.worxbend.dotbot.core.FileMode
+import io.worxbend.dotbot.core.Filesystem as CoreFilesystem
+
 import java.nio.file.Files
 import java.nio.file.LinkOption
-import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
-import java.nio.file.attribute.PosixFilePermissions
 
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
-trait Filesystem:
-  def exists(path: String): Boolean
-  def lexists(path: String): Boolean
-  def isDir(path: String): Boolean
-  def isSymlink(path: String): Boolean
-  def listDir(path: String): Either[Throwable, Vector[String]]
-  def mkdirAll(path: String, mode: Int): Either[Throwable, Unit]
-  def chmod(path: String, mode: Int): Either[Throwable, Unit]
-  def readlink(path: String): Either[Throwable, String]
-  def realpath(path: String): Either[Throwable, String]
-  def remove(path: String): Either[Throwable, Unit]
-  def removeAll(path: String): Either[Throwable, Unit]
-  def rename(from: String, to: String): Either[Throwable, Unit]
-  def sameFile(a: String, b: String): Either[Throwable, Boolean]
-  def stat(path: String): Either[Throwable, Unit]
-  def symlink(target: String, link: String): Either[Throwable, Unit]
-  def hardlink(target: String, link: String): Either[Throwable, Unit]
+type Filesystem = CoreFilesystem
 
 object OsFilesystem extends Filesystem:
   def exists(path: String): Boolean =
@@ -49,16 +34,15 @@ object OsFilesystem extends Filesystem:
       finally stream.close()
     .toEither
 
-  def mkdirAll(path: String, mode: Int): Either[Throwable, Unit] =
+  def mkdirAll(path: String, mode: FileMode): Either[Throwable, Unit] =
     Try:
       Files.createDirectories(Paths.get(path))
       ()
     .toEither
 
-  def chmod(path: String, mode: Int): Either[Throwable, Unit] =
+  def chmod(path: String, mode: FileMode): Either[Throwable, Unit] =
     Try:
-      val permissions = permissionsFromMode(mode)
-      if permissions.nonEmpty then Files.setPosixFilePermissions(Paths.get(path), permissions.get.asJava)
+      Files.setPosixFilePermissions(Paths.get(path), permissionsFromMode(mode).asJava)
       ()
     .toEither
 
@@ -107,24 +91,20 @@ object OsFilesystem extends Filesystem:
       ()
     .toEither
 
-  private def permissionsFromMode(mode: Int): Option[Set[PosixFilePermission]] =
-    val ownerRead = (mode & 0x100) != 0
-    val ownerWrite = (mode & 0x80) != 0
-    val ownerExecute = (mode & 0x40) != 0
-    val groupRead = (mode & 0x20) != 0
-    val groupWrite = (mode & 0x10) != 0
-    val groupExecute = (mode & 0x08) != 0
-    val otherRead = (mode & 0x04) != 0
-    val otherWrite = (mode & 0x02) != 0
-    val otherExecute = (mode & 0x01) != 0
-    val chars = StringBuilder()
-    chars.append(if ownerRead then 'r' else '-')
-    chars.append(if ownerWrite then 'w' else '-')
-    chars.append(if ownerExecute then 'x' else '-')
-    chars.append(if groupRead then 'r' else '-')
-    chars.append(if groupWrite then 'w' else '-')
-    chars.append(if groupExecute then 'x' else '-')
-    chars.append(if otherRead then 'r' else '-')
-    chars.append(if otherWrite then 'w' else '-')
-    chars.append(if otherExecute then 'x' else '-')
-    Try(PosixFilePermissions.fromString(chars.result()).asScala.toSet).toOption
+  private[fs] def permissionsFromMode(mode: FileMode): Set[PosixFilePermission] =
+    PermissionBits.collect {
+      case (bit, permission) if (mode.value & bit) != 0 => permission
+    }.toSet
+
+  private val PermissionBits: Vector[(Int, PosixFilePermission)] =
+    Vector(
+      FileMode.ownerRead.value -> PosixFilePermission.OWNER_READ,
+      FileMode.ownerWrite.value -> PosixFilePermission.OWNER_WRITE,
+      FileMode.ownerExecute.value -> PosixFilePermission.OWNER_EXECUTE,
+      FileMode.groupRead.value -> PosixFilePermission.GROUP_READ,
+      FileMode.groupWrite.value -> PosixFilePermission.GROUP_WRITE,
+      FileMode.groupExecute.value -> PosixFilePermission.GROUP_EXECUTE,
+      FileMode.othersRead.value -> PosixFilePermission.OTHERS_READ,
+      FileMode.othersWrite.value -> PosixFilePermission.OTHERS_WRITE,
+      FileMode.othersExecute.value -> PosixFilePermission.OTHERS_EXECUTE,
+    )
