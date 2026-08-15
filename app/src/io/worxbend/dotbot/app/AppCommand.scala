@@ -74,11 +74,13 @@ private[app] enum AppCommand:
       case Left(error) =>
         ctx.logger.error(error.render)
         1
-    case Right(plan) =>
-      format match
-        case OutputFormat.Text =>
-          ctx.stdout.print(PlanOutput.text(plan, ctx.loaded.tasks.size, ctx.options.configFiles.size, ctx.loaded.base, ctx.stylishUi))
-          0
+      case Right(plan) =>
+        format match
+          case OutputFormat.Text =>
+            ctx.stdout.print(
+              PlanOutput.text(plan, ctx.loaded.tasks.size, ctx.options.configFiles.size, ctx.loaded.base, ctx.stylishUi),
+            )
+            0
           case OutputFormat.Json =>
             ctx.stdout.print(PlanOutput.json(plan, ctx.loaded.tasks.size, ctx.options.configFiles.size, ctx.loaded.base))
             0
