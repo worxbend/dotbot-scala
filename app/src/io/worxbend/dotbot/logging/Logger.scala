@@ -1,5 +1,6 @@
 package io.worxbend.dotbot.logging
 
+import io.worxbend.dotbot.core.Environment
 import io.worxbend.dotbot.core.Log
 
 import java.io.PrintStream
@@ -15,52 +16,50 @@ enum Level(val rank: Int):
   case Error extends Level(4)
 
 /**
- * Whether pretty symbolic output (emoji badges and icons) is enabled.
+ * What the destination terminal can render.
  *
- * @param enabled true when emoji output should be rendered.
+ * @param color true when ANSI color escapes should be emitted.
+ * @param symbols true when emoji badges and icons should be emitted.
  */
-final case class SymbolSupport(enabled: Boolean)
+final case class TerminalCapabilities(color: Boolean, symbols: Boolean)
 
-/**
- * Detects whether symbolic output can be used in the current terminal.
- * This mirrors the environment guards used for color rendering.
- */
-object SymbolSupport:
-  def detect: SymbolSupport =
-    SymbolSupport(
-      sys.env.get("NO_EMOJI").isEmpty &&
-        !sys.env.get("TERM").exists(_.equalsIgnoreCase("dumb")) &&
-        Option(System.console()).nonEmpty,
+object TerminalCapabilities:
+  /** Nothing decorative: the safe choice for pipes, files, and tests. */
+  val plain: TerminalCapabilities = TerminalCapabilities(color = false, symbols = false)
+
+  /**
+   * Work out what the terminal supports from an [[Environment]] and whether a console is attached.
+   *
+   * Taking both as parameters is what makes this testable: the rules below are the interesting
+   * part, and reading them out of the real JVM would mean mutating global state to exercise them.
+   *
+   * @param env environment to read `NO_COLOR`, `NO_EMOJI` and `TERM` from.
+   * @param consoleAttached whether output is going to an interactive terminal.
+   */
+  def from(env: Environment, consoleAttached: Boolean): TerminalCapabilities =
+    val dumbTerminal = env.variable("TERM").exists(_.equalsIgnoreCase("dumb"))
+    val renderable = consoleAttached && !dumbTerminal
+    TerminalCapabilities(
+      color = renderable && env.variable("NO_COLOR").isEmpty,
+      symbols = renderable && env.variable("NO_EMOJI").isEmpty,
     )
 
-/**
- * Whether ANSI color rendering is enabled.
- *
- * @param enabled true when the terminal supports ANSI color and output is not disabled by env.
- */
-final case class ColorSupport(enabled: Boolean)
-
-/**
- * Detects whether ANSI color output is expected to render in the current environment.
- */
-object ColorSupport:
-  def detect: ColorSupport =
-    ColorSupport(
-      sys.env.get("NO_COLOR").isEmpty &&
-        !sys.env.get("TERM").exists(_.equalsIgnoreCase("dumb")) &&
-        Option(System.console()).nonEmpty,
-    )
+  /** Capabilities of the real process environment, for the composition root. */
+  def detect: TerminalCapabilities =
+    from(Environment.System, Option(System.console()).nonEmpty)
 
 /**
  * Structured, leveled logger for CLI-facing output.
  *
- * @param out destination print stream.
+ * @param out destination for informational output.
+ * @param err destination for warnings and errors.
  * @param minimum minimum level to emit.
  * @param color enable ANSI colors for labels/messages.
  * @param stylishSymbols include icon badges for levels when enabled.
  */
 final class Logger(
   out: PrintStream,
+  err: PrintStream,
   minimum: Level,
   color: Boolean,
   private[logging] val stylishSymbols: Boolean = false,
@@ -83,7 +82,18 @@ final class Logger(
       // spaces outside the ANSI reset makes the plain and colored forms line up identically.
       val badge = s"${style(level)}${symbol(level)}$name${reset}"
       val padding = " " * (Logger.LabelWidth - name.length)
-      out.println(s"$badge$padding${messageStyle(level)}$message$reset")
+      streamFor(level).println(s"$badge$padding${messageStyle(level)}$message$reset")
+
+  /**
+   * Diagnostics go to the error stream so that they can be separated from real output.
+   *
+   * Without this, `dotbot plan --output json > plan.json` writes any warning into the middle of
+   * the JSON document and the file no longer parses, with no way to filter it out.
+   */
+  private def streamFor(level: Level): PrintStream =
+    level match
+      case Level.Warning | Level.Error => err
+      case _                           => out
 
   private def label(level: Level): String =
     level match
@@ -131,24 +141,38 @@ object Logger:
    * color + symbol capabilities.
    */
   def apply(out: PrintStream): Logger =
-    Logger(out, Level.Action, ColorSupport.detect.enabled, SymbolSupport.detect.enabled)
+    Logger(out, Level.Action, TerminalCapabilities.detect)
 
   /**
    * Create a logger with an explicit minimum level and auto-detected
    * color + symbol capabilities.
    */
   def apply(out: PrintStream, minimum: Level): Logger =
-    Logger(out, minimum, ColorSupport.detect.enabled, SymbolSupport.detect.enabled)
+    Logger(out, minimum, TerminalCapabilities.detect)
+
+  /**
+   * Create a logger with an explicit minimum level and terminal capabilities, writing everything
+   * to a single stream.
+   */
+  def apply(out: PrintStream, minimum: Level, capabilities: TerminalCapabilities): Logger =
+    new Logger(out, out, minimum, capabilities.color, capabilities.symbols)
 
   /**
    * Create a logger with an explicit minimum level and color preference.
    * Symbol rendering remains auto-detected.
    */
   def apply(out: PrintStream, minimum: Level, color: Boolean): Logger =
-    Logger(out, minimum, color, SymbolSupport.detect.enabled)
+    new Logger(out, out, minimum, color, TerminalCapabilities.detect.symbols)
 
   /**
    * Create a logger with explicit level, color and symbol preferences.
    */
   def apply(out: PrintStream, minimum: Level, color: Boolean, symbols: Boolean): Logger =
-    new Logger(out, minimum, color, symbols)
+    new Logger(out, out, minimum, color, symbols)
+
+  /**
+   * Create a logger that separates diagnostics from output: warnings and errors go to `err`,
+   * everything else to `out`.
+   */
+  def split(out: PrintStream, err: PrintStream, minimum: Level, capabilities: TerminalCapabilities): Logger =
+    new Logger(out, err, minimum, capabilities.color, capabilities.symbols)

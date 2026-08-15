@@ -88,8 +88,8 @@ class GoldenCliSuite extends munit.FunSuite:
       result,
       GoldenCliResult(
         exitCode = 1,
-        stdout = "error unsupported output format \"yaml\"\n",
-        stderr = "",
+        stdout = "",
+        stderr = "error unsupported output format \"yaml\"\n",
         tree = Vector("F install.conf.yaml"),
       ),
     )

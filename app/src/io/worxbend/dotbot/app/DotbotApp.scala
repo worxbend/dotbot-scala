@@ -3,14 +3,14 @@ package io.worxbend.dotbot.app
 import io.worxbend.dotbot.config.ConfigReader
 import io.worxbend.dotbot.core.Directive
 import io.worxbend.dotbot.core.Filesystem
+import io.worxbend.dotbot.core.PathResolver
 import io.worxbend.dotbot.core.PathUtil
 import io.worxbend.dotbot.core.ShellRunner
 import io.worxbend.dotbot.core.Task
 import io.worxbend.dotbot.fs.OsFilesystem
-import io.worxbend.dotbot.logging.ColorSupport
 import io.worxbend.dotbot.logging.Level
-import io.worxbend.dotbot.logging.SymbolSupport
 import io.worxbend.dotbot.logging.Logger
+import io.worxbend.dotbot.logging.TerminalCapabilities
 import io.worxbend.dotbot.shell.OsShellRunner
 
 import java.io.PrintStream
@@ -53,10 +53,12 @@ final case class AppOptions(
  * Overridable runtime dependencies for composition/testing.
  */
 final case class AppDependencies(
-  reader: ConfigReader = ConfigReader(),
-  fs:     Filesystem = OsFilesystem,
-  shell:  ShellRunner = OsShellRunner,
-  clock:  Clock = Clock.systemDefaultZone(),
+  reader:       ConfigReader = ConfigReader(),
+  fs:           Filesystem = OsFilesystem,
+  shell:        ShellRunner = OsShellRunner,
+  clock:        Clock = Clock.systemDefaultZone(),
+  paths:        PathResolver = PathResolver.system,
+  capabilities: TerminalCapabilities = TerminalCapabilities.detect,
 )
 
 /**
@@ -70,8 +72,13 @@ object DotbotApp:
    *
    * @return process exit code.
    */
-  def run(options: AppOptions, stdout: PrintStream = System.out, deps: AppDependencies = AppDependencies()): Int =
-    val logger = loggerFor(stdout, options)
+  def run(
+    options: AppOptions,
+    stdout:  PrintStream = System.out,
+    deps:    AppDependencies = AppDependencies(),
+    stderr:  PrintStream = System.err,
+  ): Int =
+    val logger = loggerFor(stdout, stderr, options, deps.capabilities)
     load(options, deps, logger) match
       case Left(exitCode) => exitCode
       case Right(loaded)  => execute(options, stdout, deps, logger, loaded)
@@ -109,8 +116,8 @@ object DotbotApp:
 
   private def resolveBaseDirectory(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, String] =
     val base =
-      if options.baseDirectory.isBlank then PathUtil.dirname(PathUtil.abs(options.configFiles.head))
-      else PathUtil.abs(options.baseDirectory)
+      if options.baseDirectory.isBlank then PathUtil.dirname(deps.paths.abs(options.configFiles.head))
+      else deps.paths.abs(options.baseDirectory)
 
     deps.fs.stat(base) match
       case Left(error) =>
@@ -125,29 +132,47 @@ object DotbotApp:
     logger:  Logger,
     loaded:  LoadedConfig,
   ): Int =
-    val stylish = symbolsEnabled(options)
+    val stylish = symbolsEnabled(options, deps.capabilities)
     val interpreter = Wiring.interpreter(loaded.base, options, logger, deps)
     val context = AppCommandContext(options, stdout, logger, interpreter, loaded, stylish)
     AppCommand.from(options.mode).execute(context)
 
-  private def loggerFor(stdout: PrintStream, options: AppOptions): Logger =
-    val colorSupport = ColorSupport.detect
-    Logger(stdout, minimumLevel(options), colorEnabled(options, colorSupport), symbolsEnabled(options))
+  private def loggerFor(
+    stdout:       PrintStream,
+    stderr:       PrintStream,
+    options:      AppOptions,
+    capabilities: TerminalCapabilities,
+  ): Logger =
+    Logger.split(stdout, stderr, minimumLevel(options), effectiveCapabilities(options, capabilities))
 
-  private def minimumLevel(options: AppOptions): Level =
+  /**
+   * Resolve what to render from the CLI flags and what the terminal actually supports.
+   *
+   * Conflicting flags are handled rather than assumed away: the logger has to exist before
+   * `validateStartupOptions` can report the conflict through it, so this runs first and must not
+   * let either flag win. It falls back to what the terminal supports, so the error message about
+   * the conflict is rendered the way any other message would be.
+   */
+  private[app] def effectiveCapabilities(options: AppOptions, detected: TerminalCapabilities): TerminalCapabilities =
+    TerminalCapabilities(
+      color = colorEnabled(options, detected),
+      symbols = symbolsEnabled(options, detected),
+    )
+
+  private[app] def minimumLevel(options: AppOptions): Level =
     if options.quiet then Level.Warning
     else if options.verbose == 1 then Level.Info
     else if options.verbose > 1 then Level.Debug
     else Level.Action
 
-  private def colorEnabled(options: AppOptions, support: ColorSupport): Boolean =
-    if options.forceColor && options.noColor then support.enabled
+  private def colorEnabled(options: AppOptions, detected: TerminalCapabilities): Boolean =
+    if options.forceColor && options.noColor then detected.color
     else if options.forceColor then true
     else if options.noColor then false
-    else support.enabled
+    else detected.color
 
-  private def symbolsEnabled(options: AppOptions): Boolean =
+  private def symbolsEnabled(options: AppOptions, detected: TerminalCapabilities): Boolean =
     if options.forceEmoji && options.noEmoji then false
     else if options.forceEmoji then true
     else if options.noEmoji then false
-    else SymbolSupport.detect.enabled
+    else detected.symbols

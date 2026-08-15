@@ -417,11 +417,13 @@ class GoldenAppSuite extends munit.FunSuite:
         stdout =
           s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  false
-             |warn  Command [false] failed
-             |error Some commands were not successfully executed
-             |error Some tasks were not executed successfully
              |""".stripMargin,
         tree = Vector("F install.conf.yaml"),
+        stderr =
+          """warn  Command [false] failed
+            |error Some commands were not successfully executed
+            |error Some tasks were not executed successfully
+            |""".stripMargin,
       ),
     )
   }
@@ -444,8 +446,9 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 1,
-        stdout = "error validating action link: link type is not recognized: socket\n",
+        stdout = "",
         tree = Vector("F install.conf.yaml"),
+        stderr = "error validating action link: link type is not recognized: socket\n",
       ),
     )
   }
@@ -466,8 +469,9 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 1,
-        stdout = "error action unknown not handled\n",
+        stdout = "",
         tree = Vector("F install.conf.yaml"),
+        stderr = "error action unknown not handled\n",
       ),
     )
   }
@@ -481,8 +485,9 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 1,
-        stdout = "error No configuration file specified\n",
+        stdout = "",
         tree = Vector.empty,
+        stderr = "error No configuration file specified\n",
       ),
     )
   }
@@ -496,8 +501,9 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 1,
-        stdout = "error `--force-color` and `--no-color` cannot both be provided\n",
+        stdout = "",
         tree = Vector.empty,
+        stderr = "error `--force-color` and `--no-color` cannot both be provided\n",
       ),
     )
   }
@@ -513,18 +519,29 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 1,
-        stdout = "error unsupported config file format .json5\n",
+        stdout = "",
         tree = Vector("F install.json5"),
+        stderr = "error unsupported config file format .json5\n",
       ),
     )
   }
 
-  private final case class GoldenResult(exitCode: Int, stdout: String, tree: Vector[String])
+  /**
+   * Captured result of one run. `stdout` and `stderr` are kept apart because dotbot separates
+   * them: warnings and errors go to stderr so that they cannot corrupt piped plan output.
+   */
+  private final case class GoldenResult(
+    exitCode: Int,
+    stdout:   String,
+    tree:     Vector[String],
+    stderr:   String = "",
+  )
 
   private def run(root: os.Path, options: AppOptions, deps: AppDependencies = AppDependencies()): GoldenResult =
     val output = ByteArrayOutputStream()
-    val code = DotbotApp.run(options, PrintStream(output), deps)
-    GoldenResult(code, output.toString, tree(root))
+    val errors = ByteArrayOutputStream()
+    val code = DotbotApp.run(options, PrintStream(output), deps, PrintStream(errors))
+    GoldenResult(code, output.toString, tree(root), errors.toString)
 
   private def tree(root: os.Path): Vector[String] =
     os.walk(root)
