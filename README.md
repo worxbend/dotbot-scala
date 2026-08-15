@@ -105,8 +105,8 @@ Common options:
 | --- | --- |
 | `-c, --config-file CONFIG_FILE` | Add a config file. Can be provided more than once. |
 | `-d, --base-directory BASE_DIR` | Run relative paths from `BASE_DIR`. Defaults to the first config file parent. |
-| `--only clean,link` | Run only the listed directives. |
-| `--except shell` | Skip the listed directives. |
+| `--only clean,link` | Run only the listed directives. Unknown names are an error. |
+| `--except shell` | Skip the listed directives. Unknown names are an error. |
 | `-n, --dry-run` | Print intended apply actions without mutating the filesystem. |
 | `-x, --exit-on-failure` | Stop after the first failed directive. |
 | `-q, --quiet` | Show only warnings and errors. |
@@ -119,6 +119,14 @@ Common options:
 ## Configuration
 
 `dotbot-scala` reads Dotbot-style ordered task lists. Paths on the left side of `link` entries are destinations; paths on the right side are sources relative to the base directory.
+
+Task order is significant in every supported format: a `defaults` block applies only to the directives written after it.
+
+Paths may contain `~` and environment variables (`$NAME` or `${NAME}`). A variable that is not set is left in the path as written, so the path fails visibly rather than silently resolving somewhere unintended.
+
+File modes are octal, whether quoted or not: `mode: 0755` and `mode: "0755"` mean the same thing. A decimal value such as `mode: 493` is rejected.
+
+Informational output goes to stdout; warnings and errors go to stderr. This is what makes `dotbot plan --output json > plan.json` safe to redirect.
 
 Supported file extensions:
 

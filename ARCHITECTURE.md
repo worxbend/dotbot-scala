@@ -7,6 +7,8 @@
 - `io.worxbend.dotbot.core` owns the domain model (`ConfigValue`, `Action`, `Task`), directive enums, typed directive specs, planning output, execution outcome, and directive handlers.
 - `io.worxbend.dotbot.config` owns file reading and parsing. It parses YAML with `virtuslab/scala-yaml`, HOCON/JSON with Lightbend Config through PureConfig, and TOML with `tomlj`.
 - `io.worxbend.dotbot.fs`, `shell`, and `logging` provide injected runtime ports and adapters.
+- `io.worxbend.dotbot.core.Environment` abstracts the ambient process environment, so path
+  expansion and terminal detection are functions of injected values rather than of global state.
 - `io.worxbend.dotbot.app` wires dependencies, selects the app command, and renders plan output; `cli` maps picocli parse results to immutable app options.
 
 The Mill build now enforces staged `core`, `infra`, and `app` modules. Source files still live under the existing package tree, but each module has an explicit source-root slice so parser and adapter code depends on `core`, not the other way around.
@@ -56,3 +58,21 @@ This keeps observable behavior stable while allowing fast unit tests against fak
 - BT-3: Scalafix is wired for `core.fix --check` with `OrganizeImports` and core-only `DisableSyntax` rules for `var`, `return`, and `null`.
 - BT-4: The Mill module graph is split into staged `core`, `infra`, and `app` modules; `core` has no Maven dependencies, and a later physical source-directory move can be mechanical.
 - BT-6: `munit-scalacheck` covers selected path, glob, and permission invariants.
+- DI-1: Ambient process state is reached through an `Environment` port. `Environment.System` is the
+  only code that touches `sys.env` or `sys.props`, and it is supplied at the composition root. This
+  exists for testability first: expansion rules that read global state cannot be exercised without
+  mutating the whole JVM, which also prevents such tests from running in parallel.
+- DI-2: `PathUtil` holds only path algebra that depends on its arguments; expansion and resolution
+  live in `PathResolver`, which takes an `Environment` and is carried on `RuntimeContext`.
+  `absFromExpanded` exists so that recursive walks do not expand real directory entries a second
+  time.
+- DI-3: Terminal rendering capability is a `TerminalCapabilities` value derived by a pure function
+  of the environment plus whether a console is attached, injected through `AppDependencies`,
+  replacing the self-detecting `ColorSupport` and `SymbolSupport`.
+- OUT-1: The logger takes an output stream and an error stream. Warnings and errors go to the
+  error stream so machine-readable output on stdout cannot be corrupted by diagnostics.
+- VAL-1: Each directive declares an `OptionSchema` naming the options it accepts and the type of
+  each. Strict (validate) decoding checks entries and `defaults` sections against it; execute mode
+  stays lenient so that working configurations are unaffected.
+- VAL-2: Directive entries that cannot be decoded carry a description of what was written, so a
+  soft failure can name the offending entry rather than only appearing in the summary.
