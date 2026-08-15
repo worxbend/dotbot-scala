@@ -63,7 +63,20 @@ object PlanOutput:
     if stylish then
       s"${directiveIcon(operation.directive)} ${operation.directive.label}  ${operation.target}$detail"
     else
-      s"${operation.directive.label}%-7s ${operation.target}$detail"
+      // Pad the directive label into a fixed column so targets line up. This must not be an `s`
+      // interpolator: `%-7s` is a printf directive and `s` would emit it as literal text.
+      s"${directiveColumn(operation.directive.label)}${operation.target}$detail"
+
+  /**
+   * Width of the directive column in plain text plan output, locked by `PlanOutputSuite`. An
+   * unusually long label (an unknown directive echoes its raw name) still gets one separating
+   * space rather than running into the target.
+   */
+  private val DirectiveColumnWidth: Int = 8
+
+  private def directiveColumn(label: String): String =
+    if label.length >= DirectiveColumnWidth then label + " "
+    else label.padTo(DirectiveColumnWidth, ' ')
 
   private def directiveIcon(directive: Directive): String =
     directive match
