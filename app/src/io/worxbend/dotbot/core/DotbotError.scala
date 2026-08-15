@@ -31,5 +31,14 @@ object DotbotError:
   final case class ConfigTaskNotMapping(path: String, index: Int) extends DotbotError:
     def render: String = s"configuration task $index in \"$path\" must be a mapping"
 
+  /**
+   * Several directives share one line inside a single task, in a format that records only the line
+   * a value came from. Their order cannot be recovered, and order changes what a config does.
+   */
+  final case class AmbiguousTaskOrder(path: String, line: Int, directives: Vector[String]) extends DotbotError:
+    def render: String =
+      s"configuration task in \"$path\" line $line writes ${directives.mkString(", ")} on one line, " +
+        "so their order cannot be determined; put each directive on its own line"
+
   private def renderActionContext(phase: String, directive: Directive, cause: DotbotError): String =
     s"$phase action ${directive.label}: ${cause.render}"

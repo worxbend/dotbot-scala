@@ -1,6 +1,7 @@
 package io.worxbend.dotbot
 
 import io.worxbend.dotbot.config.ConfigParsers
+import io.worxbend.dotbot.core.DotbotError
 
 /**
  * A Dotbot configuration is an ordered program: `defaults` applies only to the directives written
@@ -132,4 +133,77 @@ class ConfigOrderSuite extends munit.FunSuite:
 
     val links = tasks.head.actions.head.data.asObject.map(_.map(_._1))
     assertEquals(links, Some(Vector("a.txt", "b.txt", "c.txt")))
+  }
+
+  test("an array of single-directive tasks keeps its order even written on one line") {
+    // The task list is a HOCON array, and an array is an ordered list rather than a map, so this
+    // is exact regardless of layout. It is the reason one directive per element is the form to use.
+    assertEquals(
+      directivesOf(
+        "conf",
+        """tasks = [ {defaults={link={create=true}}}, {create=["a"]}, {link={x=y}}, """ +
+          """{shell=["echo"]}, {clean=["~"]} ]""",
+      ),
+      Vector(Vector("defaults"), Vector("create"), Vector("link"), Vector("shell"), Vector("clean")),
+    )
+  }
+
+  test("JSON keeps its order when a task is written entirely on one line") {
+    // jsoniter reads fields in stream order, so JSON needs no line-number recovery at all.
+    assertEquals(
+      directivesOf("json", """[{"defaults": {}, "create": ["a"], "link": {}, "shell": [], "clean": []}]"""),
+      Vector(Vector("defaults", "create", "link", "shell", "clean")),
+    )
+  }
+
+  test("a HOCON task with several directives on one line is rejected, not guessed at") {
+    // HOCON records only the line a value came from, so two directives sharing a line cannot be
+    // ordered. Falling back to hash order is exactly the silent misbehavior being prevented.
+    val result = ConfigParsers.parseTasks(
+      "install.conf",
+      "conf",
+      """tasks = [
+        |  { defaults = { link = { create = true } }, create = ["a"] }
+        |]
+        |""".stripMargin,
+    )
+
+    result match
+      case Left(DotbotError.AmbiguousTaskOrder(path, line, directives)) =>
+        assertEquals(path, "install.conf")
+        assertEquals(line, 2)
+        assertEquals(directives, Vector("create", "defaults"))
+      case other => fail(s"expected an ambiguous-order error, got $other")
+  }
+
+  test("the ambiguity error tells the user how to fix it") {
+    val rendered = ConfigParsers
+      .parseTasks("install.conf", "conf", "tasks = [ { create = [\"a\"], clean = [\"~\"] } ]")
+      .left
+      .map(_.render)
+
+    assert(rendered.left.exists(_.contains("put each directive on its own line")), rendered)
+  }
+
+  test("a single-directive task on one line is fine, having nothing to order") {
+    assertEquals(
+      directivesOf("conf", """tasks = [ { create = ["a"] }, { clean = ["~"] } ]"""),
+      Vector(Vector("create"), Vector("clean")),
+    )
+  }
+
+  test("directives on separate lines are still accepted and ordered") {
+    assertEquals(
+      directivesOf(
+        "conf",
+        """tasks = [
+          |  {
+          |    defaults = { link = { create = true } }
+          |    create = ["a"]
+          |  }
+          |]
+          |""".stripMargin,
+      ),
+      Vector(Vector("defaults", "create")),
+    )
   }
