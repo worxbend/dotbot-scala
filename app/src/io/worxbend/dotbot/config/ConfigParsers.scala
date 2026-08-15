@@ -158,11 +158,33 @@ object ConfigParsers:
       case list: ConfigList     =>
         ConfigValue.ArrayValue(list.asScala.toVector.map(fromTypesafe))
       case obj: ConfigObject    =>
-        ConfigValue.ObjectValue(
-          obj.entrySet().asScala.toVector.map(entry => entry.getKey -> fromTypesafe(entry.getValue)),
-        )
+        ConfigValue.ObjectValue(typesafeFields(obj))
       case scalar               =>
         fromTypesafeScalar(scalar)
+
+  /**
+   * Read an object's fields in the order they were written in the file.
+   *
+   * `ConfigObject` extends `java.util.Map` and its `entrySet` iterates in hash order, which
+   * scrambles the directives inside a task. That matters because a Dotbot config is an ordered
+   * program, not a set of settings: a `defaults` block only applies to the directives that follow
+   * it, so a reordered task silently applies the wrong options. YAML and TOML already preserve
+   * order, and without this HOCON and JSON configs would behave differently from the identical
+   * config written in YAML.
+   *
+   * Every value carries a `ConfigOrigin` recording the line it was parsed from, so sorting by line
+   * restores the written order.
+   */
+  private def typesafeFields(obj: ConfigObject): Vector[(String, ConfigValue)] =
+    obj
+      .entrySet()
+      .asScala
+      .toVector
+      // `sortBy` is stable, so fields that share a line keep their relative order. Lightbend Config
+      // records only the line, not the column, so a task written inline as `{a = 1, b = 2}` cannot
+      // be ordered from source; every task in the shipped examples is written one field per line.
+      .sortBy(_.getValue.origin().lineNumber())
+      .map(entry => entry.getKey -> fromTypesafe(entry.getValue))
 
   private def fromTypesafeScalar(value: TypesafeConfigValue): ConfigValue =
     value.valueType() match
