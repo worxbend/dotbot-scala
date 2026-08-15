@@ -1,5 +1,6 @@
 package io.worxbend.dotbot.golden
 
+import io.worxbend.dotbot.app.DotbotApp
 import io.worxbend.dotbot.cli.Cli
 
 import java.io.ByteArrayOutputStream
@@ -17,7 +18,10 @@ class GoldenCliSuite extends munit.FunSuite:
       result,
       GoldenCliResult(
         exitCode = 0,
-        stdout = "Dotbot-Scala version 0.1.0\n",
+        // Derived from the build rather than hardcoded: the version string is generated into
+        // BuildInfo from build.mill, so a version bump must not break this golden. What is locked
+        // here is the shape of the line, not the number in it.
+        stdout = s"Dotbot-Scala version ${DotbotApp.version}\n",
         stderr = "",
         tree = Vector.empty,
       ),
