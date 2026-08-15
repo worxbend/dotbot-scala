@@ -90,7 +90,7 @@ class ConfigReaderSuite extends munit.FunSuite:
     assertEquals(hoconTasks.map(_.actions.map(_.directive.label)), Vector(Vector("create")))
   }
 
-  test("reads JSON root task objects through Lightbend Config and PureConfig") {
+  test("reads JSON root task objects through jsoniter") {
     val tasks = ConfigParsers.parseTasks(
       "install.json",
       "json",
@@ -105,7 +105,7 @@ class ConfigReaderSuite extends munit.FunSuite:
     assertEquals(tasks.map(_.actions.map(_.directive.label)), Vector(Vector("create")))
   }
 
-  test("reads HOCON task alias through Lightbend Config and PureConfig") {
+  test("reads HOCON task alias through Lightbend Config") {
     val tasks = ConfigParsers.parseTasks(
       "install.conf",
       "conf",

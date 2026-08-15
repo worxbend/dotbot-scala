@@ -17,8 +17,8 @@ object Versions:
   val picocli = "4.7.7"
   val scalaYaml = "0.3.2"
   val lightbendConfig = "1.4.9"
-  val pureConfig = "0.17.10"
   val tomlj = "1.1.1"
+  val jsoniter = "2.35.3"
   val munit = "1.1.1"
   val munitScalacheck = "1.1.0"
 
@@ -70,7 +70,7 @@ object infra extends DotbotScalaModule:
     mvn"com.softwaremill.ox::core:${Versions.ox}",
     mvn"org.virtuslab::scala-yaml:${Versions.scalaYaml}",
     mvn"com.typesafe:config:${Versions.lightbendConfig}",
-    mvn"com.github.pureconfig::pureconfig-core:${Versions.pureConfig}",
+    mvn"com.github.plokhotnyuk.jsoniter-scala::jsoniter-scala-core:${Versions.jsoniter}",
     mvn"org.tomlj:tomlj:${Versions.tomlj}",
   )
 

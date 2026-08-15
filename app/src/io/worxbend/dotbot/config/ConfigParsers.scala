@@ -7,22 +7,20 @@ import com.typesafe.config.ConfigParseOptions
 import com.typesafe.config.ConfigSyntax
 import com.typesafe.config.ConfigValue as TypesafeConfigValue
 import com.typesafe.config.ConfigValueType
+import com.github.plokhotnyuk.jsoniter_scala.core.JsonReader
+import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
+import com.github.plokhotnyuk.jsoniter_scala.core.JsonWriter
+import com.github.plokhotnyuk.jsoniter_scala.core.readFromString
 import io.worxbend.dotbot.core.Directive
 import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.EitherUtil
 import org.tomlj.Toml
 import org.virtuslab.yaml.Node
 import org.virtuslab.yaml.Tag
-import pureconfig.ConfigReader as PureConfigReader
-import pureconfig.ConfigSource
-
 import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
 
 object ConfigParsers:
-  private given PureConfigReader[ConfigValue] =
-    PureConfigReader.fromCursor(_.asConfigValue.map(fromTypesafe))
-
   def parseTasks(path: String, extension: String, data: String): Either[DotbotError, Vector[Task]] =
     parseValue(path, extension, data).flatMap(tasksFromValue(path, _))
 
@@ -31,21 +29,23 @@ object ConfigParsers:
 
   private enum ConfigFormat:
     case Yaml
-    case Lightbend(syntax: ConfigSyntax)
+    case Hocon
+    case Json
     case Toml
 
     def parse(path: String, data: String): Either[DotbotError, ConfigValue] =
       this match
-        case Yaml              => parseYaml(data)
-        case Lightbend(syntax) => parseLightbend(data, syntax, path)
-        case Toml              => parseToml(data)
+        case Yaml  => parseYaml(data)
+        case Hocon => parseHocon(data, path)
+        case Json  => parseJson(data)
+        case Toml  => parseToml(data)
 
   private object ConfigFormat:
     def fromExtension(extension: String): Either[DotbotError, ConfigFormat] =
       extension match
         case "yaml" | "yml"   => Right(ConfigFormat.Yaml)
-        case "conf" | "hocon" => Right(ConfigFormat.Lightbend(ConfigSyntax.CONF))
-        case "json" => Right(ConfigFormat.Lightbend(ConfigSyntax.JSON))
+        case "conf" | "hocon" => Right(ConfigFormat.Hocon)
+        case "json"           => Right(ConfigFormat.Json)
         case "toml"           => Right(ConfigFormat.Toml)
         case other            => Left(DotbotError.UnsupportedConfigFormat(other))
 
@@ -60,24 +60,133 @@ object ConfigParsers:
           .map(error => DotbotError.Message(error.getMessage))
       catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
 
-  private def parseLightbend(
-    data: String,
-    syntax: ConfigSyntax,
-    path: String,
-  ): Either[DotbotError, ConfigValue] =
+  /**
+   * Parse HOCON.
+   *
+   * Lightbend Config backs an object with a `HashMap`, so the fields of a task come back in hash
+   * order rather than the order they were written. Order is significant in a Dotbot config — a
+   * `defaults` block applies only to what follows it — so it is recovered from the line each field
+   * was parsed from, and a task whose ordering cannot be recovered is rejected outright by
+   * `checkTaskOrder` rather than guessed at.
+   */
+  private def parseHocon(data: String, path: String): Either[DotbotError, ConfigValue] =
     try
-      val (configText, rootPath) = lightbendInput(data, syntax)
+      val (configText, rootPath) = hoconInput(data)
       val options = ConfigParseOptions
         .defaults()
-        .setSyntax(syntax)
+        .setSyntax(ConfigSyntax.CONF)
         .setOriginDescription(path)
-      val source = ConfigSource.fromConfig(ConfigFactory.parseString(configText, options))
-      val result = rootPath match
-        case Some(valuePath) => source.at(valuePath).load[ConfigValue]
-        case None            => source.load[ConfigValue]
+      val parsed = ConfigFactory.parseString(configText, options)
+      // `Config.getValue` reports a null value as a missing key, so the wrapper is read off the
+      // root object instead, where an explicit null survives as a null value.
+      val root: TypesafeConfigValue =
+        rootPath.fold(parsed.root())(valuePath => parsed.root().get(valuePath))
 
-      result.left.map(error => DotbotError.Message(error.prettyPrint()))
+      checkTaskOrder(path, root).map(_ => fromTypesafe(root))
     catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
+
+  /**
+   * Parse JSON.
+   *
+   * jsoniter-scala reads the document as a stream of tokens, so an object's fields arrive in the
+   * order they were written and the codec below simply appends them. No ordering has to be
+   * recovered afterwards, unlike HOCON. The codec is written by hand rather than generated, which
+   * keeps the parser free of both macros and reflection — the latter matters because this project
+   * ships GraalVM native binaries.
+   */
+  private def parseJson(data: String): Either[DotbotError, ConfigValue] =
+    if data.trim.isEmpty then Right(ConfigValue.NullValue)
+    else
+      try Right(readFromString(data)(using JsonConfigValueCodec))
+      catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
+
+  private object JsonConfigValueCodec extends JsonValueCodec[ConfigValue]:
+    def nullValue: ConfigValue = ConfigValue.NullValue
+
+    def encodeValue(value: ConfigValue, out: JsonWriter): Unit =
+      // Configuration is only ever read, never written back out.
+      throw UnsupportedOperationException("dotbot does not write JSON configuration")
+
+    def decodeValue(in: JsonReader, default: ConfigValue): ConfigValue =
+      val token = in.nextToken()
+      in.rollbackToken()
+      token match
+        case '"'       => ConfigValue.StringValue(in.readString(null))
+        case 't' | 'f' => ConfigValue.BoolValue(in.readBoolean())
+        case 'n'       => readNull(in)
+        case '['       => readArray(in, default)
+        case '{'       => readObject(in, default)
+        case digit if digit == '-' || (digit >= '0' && digit <= '9') =>
+          ConfigValue.NumberValue(in.readBigDecimal(null))
+        case _ => in.decodeError("expected a JSON value")
+
+    private def readNull(in: JsonReader): ConfigValue =
+      // `readNullOrError` reads the rest of the literal and so needs the token it follows to be
+      // the current one; the dispatch above rolled its lookahead back.
+      in.nextToken(): Unit
+      in.readNullOrError(ConfigValue.NullValue, "expected null")
+
+    private def readArray(in: JsonReader, default: ConfigValue): ConfigValue =
+      if !in.isNextToken('[') then in.decodeError("expected '['")
+      else if in.isNextToken(']') then ConfigValue.ArrayValue(Vector.empty)
+      else
+        in.rollbackToken()
+        val items = Vector.newBuilder[ConfigValue]
+        while
+          items += decodeValue(in, default)
+          in.isNextToken(',')
+        do ()
+        if in.isCurrentToken(']') then ConfigValue.ArrayValue(items.result())
+        else in.arrayEndOrCommaError()
+
+    private def readObject(in: JsonReader, default: ConfigValue): ConfigValue =
+      if !in.isNextToken('{') then in.decodeError("expected '{'")
+      else if in.isNextToken('}') then ConfigValue.ObjectValue(Vector.empty)
+      else
+        in.rollbackToken()
+        val fields = Vector.newBuilder[(String, ConfigValue)]
+        while
+          // Appending as the tokens arrive is what preserves the order the user wrote.
+          fields += in.readKeyAsString() -> decodeValue(in, default)
+          in.isNextToken(',')
+        do ()
+        if in.isCurrentToken('}') then ConfigValue.ObjectValue(fields.result())
+        else in.objectEndOrCommaError()
+
+  /**
+   * Reject a task whose directives cannot be put back into the order they were written.
+   *
+   * Only the line a field came from is recorded, so two directives written on the same line inside
+   * one task are indistinguishable. Rather than fall back to hash order — which is the silent
+   * misbehavior this whole mechanism exists to prevent — such a task is reported, with the fix
+   * spelled out. Directives on separate lines, and the usual one-directive-per-element style, are
+   * unaffected.
+   */
+  private def checkTaskOrder(path: String, root: TypesafeConfigValue): Either[DotbotError, Unit] =
+    EitherUtil.traverse(taskObjects(root))(checkOneTaskOrder(path, _)).map(_ => ())
+
+  private def taskObjects(root: TypesafeConfigValue): Vector[ConfigObject] =
+    val list =
+      root match
+        case items: ConfigList => Some(items)
+        case obj: ConfigObject =>
+          Vector("tasks", "task").iterator.map(obj.get).collectFirst { case items: ConfigList => items }
+        case _ => None
+
+    list.toVector.flatMap(_.asScala.toVector).collect { case obj: ConfigObject => obj }
+
+  private def checkOneTaskOrder(path: String, task: ConfigObject): Either[DotbotError, Unit] =
+    val sharingALine = task
+      .entrySet()
+      .asScala
+      .toVector
+      .groupBy(entry => entry.getValue.origin().lineNumber())
+      .collectFirst { case (line, entries) if entries.size > 1 => line -> entries.map(_.getKey).sorted }
+
+    sharingALine match
+      case None => Right(())
+      case Some((line, keys)) =>
+        Left(DotbotError.AmbiguousTaskOrder(path, line, keys))
 
   private def parseToml(data: String): Either[DotbotError, ConfigValue] =
     try
@@ -86,13 +195,13 @@ object ConfigParsers:
       else Right(fromToml(result))
     catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
 
-  private def lightbendInput(data: String, syntax: ConfigSyntax): (String, Option[String]) =
+  /**
+   * Wrap a root-level list so that Lightbend Config, which requires an object at the root, can
+   * parse it. The wrapper key is then unwrapped by the caller.
+   */
+  private def hoconInput(data: String): (String, Option[String]) =
     val trimmed = data.dropWhile(_.isWhitespace)
-    if trimmed.startsWith("[") || isRootNull(trimmed) then
-      val wrapped = syntax match
-        case ConfigSyntax.JSON => s"""{"tasks": $data}"""
-        case _                 => s"tasks = $data"
-      wrapped -> Some("tasks")
+    if trimmed.startsWith("[") || isRootNull(trimmed) then s"tasks = $data" -> Some("tasks")
     else data -> None
 
   private def isRootNull(trimmed: String): Boolean =
