@@ -35,6 +35,7 @@ private final case class CliState(
   dryRun:        Boolean = false,
   exitOnFailure: Boolean = false,
   planOutput:    OutputFormatArgument = OutputFormatArgument.Valid(OutputFormat.Text),
+  unknownDirectives: Vector[String] = Vector.empty,
 ):
   /**
    * Merge a nested subcommand state with values inherited from the parent command.
@@ -53,6 +54,7 @@ private final case class CliState(
       noEmoji = parent.noEmoji || noEmoji,
       dryRun = parent.dryRun || dryRun,
       exitOnFailure = parent.exitOnFailure || exitOnFailure,
+      unknownDirectives = parent.unknownDirectives ++ unknownDirectives,
       planOutput =
         if planOutput != OutputFormatArgument.Valid(OutputFormat.Text) then planOutput
         else parent.planOutput,
@@ -106,6 +108,9 @@ private final class CliStateBuilder:
   def addSkip(values: Vector[Directive]): Unit =
     update(state => state.copy(skip = state.skip ++ values))
 
+  def addUnknownDirectives(names: Vector[String]): Unit =
+    update(state => state.copy(unknownDirectives = state.unknownDirectives ++ names))
+
   def enableForceColor(): Unit =
     update(_.copy(forceColor = true))
 
@@ -140,12 +145,18 @@ private enum CliCommand:
   case Plan(state: CliState)
   case Unknown
 
-  def execute(stdout: PrintStream): Int =
+  def execute(stdout: PrintStream, stderr: PrintStream): Int =
     this match
-      case CliCommand.Apply(state)    => DotbotApp.run(state.appOptions(), stdout)
-      case CliCommand.Validate(state) => DotbotApp.run(state.appOptions(RunMode.Validate), stdout)
-      case CliCommand.Plan(state)     => DotbotApp.run(state.appOptions(state.planMode), stdout)
+      case CliCommand.Apply(state)    => run(state, state.appOptions(), stdout, stderr)
+      case CliCommand.Validate(state) => run(state, state.appOptions(RunMode.Validate), stdout, stderr)
+      case CliCommand.Plan(state)     => run(state, state.appOptions(state.planMode), stdout, stderr)
       case CliCommand.Unknown         => 1
+
+  private def run(state: CliState, options: AppOptions, stdout: PrintStream, stderr: PrintStream): Int =
+    if state.unknownDirectives.isEmpty then DotbotApp.run(options, stdout, stderr = stderr)
+    else
+      stderr.println(s"error unknown directive(s): ${state.unknownDirectives.mkString(", ")}")
+      1
 
 /**
  * Top-level CLI entrypoint and command wiring.
@@ -200,7 +211,7 @@ object Cli:
     command.setExecutionStrategy { parseResult =>
       if parseResult.isUsageHelpRequested || parseResult.isVersionHelpRequested then
         CommandLine.executeHelpRequest(parseResult)
-      else cliCommand(parseResult, rootState.state, validateState.state, planState.state).execute(stdout)
+      else cliCommand(parseResult, rootState.state, validateState.state, planState.state).execute(stdout, stderr)
     }
     command.execute(args*)
 
@@ -240,14 +251,14 @@ object Cli:
       stringOption(
         Array("--only"),
         "only run specified directives",
-        value => state.addOnly(splitDirectiveList(value)),
+        value => applyDirectiveList(state, value, state.addOnly),
       ),
     ): Unit
     spec.addOption(
       stringOption(
         Array("--except"),
         "skip specified directives",
-        value => state.addSkip(splitDirectiveList(value)),
+        value => applyDirectiveList(state, value, state.addSkip),
       ),
     ): Unit
     spec.addOption(booleanOption(Array("--force-color"), "force color output", state.enableForceColor)): Unit
@@ -308,5 +319,25 @@ object Cli:
         update(value)
         value
 
-  private def splitDirectiveList(value: String): Vector[Directive] =
-    value.split(",").iterator.map(_.trim).filter(_.nonEmpty).map(Directive.parse).toVector
+  /**
+   * Parse a comma-separated `--only` / `--except` list into directives.
+   *
+   * Unknown names are rejected rather than turned into `Directive.Unknown`. A typo used to be
+   * accepted silently and then matched no directive at all, so `--only lnik` skipped every action,
+   * printed "All tasks executed successfully" and exited 0 — telling the user their dotfiles were
+   * installed when nothing had run.
+   */
+  private[cli] def splitDirectiveList(value: String): Either[Vector[String], Vector[Directive]] =
+    val names = value.split(",").iterator.map(_.trim).filter(_.nonEmpty).toVector
+    val unknown = names.filter(Directive.fromString(_).isEmpty)
+    if unknown.nonEmpty then Left(unknown)
+    else Right(names.flatMap(Directive.fromString))
+
+  private def applyDirectiveList(
+    state: CliStateBuilder,
+    value: String,
+    accept: Vector[Directive] => Unit,
+  ): Unit =
+    splitDirectiveList(value) match
+      case Right(directives) => accept(directives)
+      case Left(unknown)     => state.addUnknownDirectives(unknown)
