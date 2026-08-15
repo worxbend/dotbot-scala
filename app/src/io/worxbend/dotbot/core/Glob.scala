@@ -19,7 +19,7 @@ object Glob:
 
   def glob(pattern: String): Either[DotbotError, Vector[String]] =
     if pattern.contains("**") then doubleStarGlob(pattern)
-    else walkMatches(pattern, staticRoot(pattern), _ => true)
+    else walkMatches(pattern, staticRoot(pattern), depthLimit(pattern), _ => true)
 
   def globLinkItem(pattern: String, item: String): String =
     val dir = PathUtil.dirname(commonPrefix(pattern, item))
@@ -27,14 +27,35 @@ object Glob:
     else item.stripPrefix(dir + "/")
 
   private def doubleStarGlob(pattern: String): Either[DotbotError, Vector[String]] =
-    walkMatches(pattern, staticRoot(pattern.take(pattern.indexOf("**"))), includeDoubleStarMatch(pattern, _))
+    // `**` matches any number of directories, so there is no depth to stop at.
+    walkMatches(pattern, staticRoot(pattern.take(pattern.indexOf("**"))), Int.MaxValue, includeDoubleStarMatch(pattern, _))
 
-  private def walkMatches(pattern: String, root: String, includePath: Path => Boolean): Either[DotbotError, Vector[String]] =
+  /**
+   * How deep below the static root a match could possibly be.
+   *
+   * A pattern without a double star can only match at one exact depth, because each `/` in the
+   * pattern is one directory level. Walking the entire subtree regardless meant that a pattern
+   * such as "config" followed by a single star, on a dotfiles repository containing a vendored
+   * `.git` or `node_modules`, descended through every last file in them looking for candidates
+   * that could never match at that depth. Handing the depth to `Files.walk` prunes the walk.
+   */
+  private def depthLimit(pattern: String): Int =
+    val root = staticRoot(pattern)
+    val rootDepth = if root == "." || root == "/" then 0 else root.count(_ == '/') + 1
+    val patternDepth = pattern.count(_ == '/') + 1
+    math.max(patternDepth - rootDepth, 1)
+
+  private def walkMatches(
+    pattern:     String,
+    root:        String,
+    maxDepth:    Int,
+    includePath: Path => Boolean,
+  ): Either[DotbotError, Vector[String]] =
     Try {
       val matcher = FileSystems.getDefault.getPathMatcher(s"glob:$pattern")
       if !Files.exists(Paths.get(root)) then Vector.empty
       else
-        val stream = Files.walk(Paths.get(root))
+        val stream = Files.walk(Paths.get(root), maxDepth)
         try
           stream.iterator().asScala
             .filter(path => matcher.matches(path))
