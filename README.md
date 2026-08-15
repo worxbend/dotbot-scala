@@ -120,7 +120,9 @@ Common options:
 
 `dotbot-scala` reads Dotbot-style ordered task lists. Paths on the left side of `link` entries are destinations; paths on the right side are sources relative to the base directory.
 
-Task order is significant in every supported format: a `defaults` block applies only to the directives written after it.
+Task order is significant in every supported format: a `defaults` block applies only to the directives written after it. Write one directive per task entry — the shape every example below uses — and the order you write is the order that runs.
+
+HOCON records only the line a value came from, so if a single task entry puts several directives on one line their order cannot be recovered. Rather than guess, `dotbot-scala` reports it and asks you to split them across lines. YAML, JSON and TOML have no such limitation.
 
 Paths may contain `~` and environment variables (`$NAME` or `${NAME}`). A variable that is not set is left in the path as written, so the path fails visibly rather than silently resolving somewhere unintended.
 

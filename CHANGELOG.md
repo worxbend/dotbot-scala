@@ -1,5 +1,22 @@
 # Changelog
 
+## unreleased
+
+### Fixed
+
+- **JSON configurations keep the order they were written in, exactly.** JSON is now parsed with
+  jsoniter-scala, which reads fields in stream order, so no ordering has to be recovered after the
+  fact. This removes the remaining case where a JSON task written on a single line could be
+  reordered.
+- **An unorderable HOCON task is reported instead of guessed at.** HOCON records only the line a
+  value came from, so several directives sharing one line inside a task cannot be put back in
+  order. That is now an error naming the line and the directives, rather than a silent fall back
+  to hash order.
+
+### Internal
+
+- Dropped the PureConfig dependency; HOCON is read directly through Lightbend Config.
+
 ## 0.2.0
 
 ### Fixed
