@@ -1,7 +1,6 @@
 package io.worxbend.dotbot
 
 import io.worxbend.dotbot.core.PathUtil
-import io.worxbend.dotbot.testkit.TestEnvironment
 
 /**
  * Covers the pure path algebra in `PathUtil`. Everything that depends on the environment lives in

@@ -8,6 +8,9 @@ import io.worxbend.dotbot.logging.TerminalCapabilities
  * they can call the mapping functions directly instead of inferring them from captured output.
  */
 class AppOptionsSuite extends munit.FunSuite:
+  private val terminal = TerminalCapabilities(color = true, symbols = true)
+  private val pipe = TerminalCapabilities.plain
+
   test("verbosity selects the minimum level") {
     assertEquals(DotbotApp.minimumLevel(AppOptions()), Level.Action)
     assertEquals(DotbotApp.minimumLevel(AppOptions(verbose = 1)), Level.Info)
@@ -19,9 +22,6 @@ class AppOptionsSuite extends munit.FunSuite:
     assertEquals(DotbotApp.minimumLevel(AppOptions(quiet = true)), Level.Warning)
     assertEquals(DotbotApp.minimumLevel(AppOptions(quiet = true, verbose = 2)), Level.Warning)
   }
-
-  private val terminal = TerminalCapabilities(color = true, symbols = true)
-  private val pipe = TerminalCapabilities.plain
 
   test("without flags the terminal decides") {
     assertEquals(DotbotApp.effectiveCapabilities(AppOptions(), terminal), terminal)
