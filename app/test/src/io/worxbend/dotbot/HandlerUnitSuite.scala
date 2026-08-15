@@ -35,7 +35,7 @@ class HandlerUnitSuite extends munit.FunSuite:
     val base = "/workspace"
     val fs = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val path = PathUtil.absFrom(base, "generated")
+    val path = PathUtil.join(base, "generated")
     val spec = CreateSpec(Vector(CreateEntry.Path("generated", FileMode.rwxAll)))
 
     assertEquals(CreateHandler().execute(runtime.ctx, spec), Outcome.Ok)

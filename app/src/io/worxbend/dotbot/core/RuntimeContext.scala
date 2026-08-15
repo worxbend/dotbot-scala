@@ -19,6 +19,7 @@ final case class RuntimeContext(
   fs:            Filesystem,
   shell:         ShellRunner,
   clock:         Clock,
+  paths:         PathResolver = PathResolver.system,
 ):
   def withFilesystem[A](result: => Either[Throwable, A], onFailure: Throwable => String): Option[A] =
     result match

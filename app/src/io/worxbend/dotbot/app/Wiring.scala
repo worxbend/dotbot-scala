@@ -10,7 +10,10 @@ import io.worxbend.dotbot.logging.Logger
 
 private[app] object Wiring:
   def interpreter(base: String, options: AppOptions, logger: Logger, deps: AppDependencies): Interpreter =
-    Interpreter(RuntimeContext(base, coreOptions(options), logger, deps.fs, deps.shell, deps.clock), handlers)
+    Interpreter(
+      RuntimeContext(base, coreOptions(options), logger, deps.fs, deps.shell, deps.clock, deps.paths),
+      handlers,
+    )
 
   def handlers: Map[Directive, DirectiveHandler] =
     DirectiveRegistry.handlers

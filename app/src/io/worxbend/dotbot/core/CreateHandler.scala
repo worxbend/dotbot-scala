@@ -25,7 +25,7 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
     "Some paths were not successfully set up"
 
   private def createPath(ctx: RuntimeContext, path: String, mode: FileMode): Outcome =
-    val absolute = PathUtil.absFrom(ctx.baseDirectory, path)
+    val absolute = ctx.paths.absFrom(ctx.baseDirectory, path)
     if ctx.fs.exists(absolute) then
       ctx.log.info(s"Path exists $absolute")
       Outcome.Ok

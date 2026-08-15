@@ -1,8 +1,10 @@
 package io.worxbend.dotbot.testkit
 
 import io.worxbend.dotbot.core.CoreOptions
+import io.worxbend.dotbot.core.Environment
 import io.worxbend.dotbot.core.FileMode
 import io.worxbend.dotbot.core.Filesystem
+import io.worxbend.dotbot.core.PathResolver
 import io.worxbend.dotbot.core.RuntimeContext
 import io.worxbend.dotbot.core.ShellExit
 import io.worxbend.dotbot.core.ShellOptions
@@ -177,6 +179,20 @@ object ScriptedShellRunner:
   def always(result: ShellExit): ScriptedShellRunner =
     ScriptedShellRunner(Vector.empty, result)
 
+/**
+ * A fixed environment for tests, so path expansion never depends on the machine running them.
+ */
+object TestEnvironment:
+  val HomeDirectory: String = "/home/test"
+  val WorkingDirectory: String = "/workspace"
+
+  def apply(variables: Map[String, String] = Map.empty): Environment =
+    Environment.fixed(variables, HomeDirectory, WorkingDirectory)
+
+  /** A resolver over that fixed environment. */
+  def resolver(variables: Map[String, String] = Map.empty): PathResolver =
+    PathResolver(apply(variables))
+
 final case class CapturedRuntime(ctx: RuntimeContext, output: ByteArrayOutputStream)
 
 object TestRuntime:
@@ -187,6 +203,7 @@ object TestRuntime:
     shell:         ShellRunner = ScriptedShellRunner.always(ShellExit.Completed(0)),
     output:        ByteArrayOutputStream = ByteArrayOutputStream(),
     clock:         Clock = Clock.systemUTC(),
+    paths:         PathResolver = TestEnvironment.resolver(),
   ): CapturedRuntime =
     CapturedRuntime(
       RuntimeContext(
@@ -196,6 +213,7 @@ object TestRuntime:
         fs = fs,
         shell = shell,
         clock = clock,
+        paths = paths,
       ),
       output,
     )

@@ -17,7 +17,8 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
 
   override protected def executeEntry(ctx: RuntimeContext, entry: CleanEntry): Outcome =
     entry match
-      case CleanEntry.Target(target, force, recursive) => cleanTarget(ctx, target, force, recursive)
+      case CleanEntry.Target(target, force, recursive) =>
+        cleanDirectory(ctx, ctx.paths.absFrom(ctx.baseDirectory, target), target, force, recursive)
       case CleanEntry.Invalid                         => Outcome.Failed
 
   override protected def allSuccessfulMessage: String =
@@ -26,17 +27,31 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
   override protected def someFailedMessage: String =
     "Some targets were not successfully cleaned"
 
-  private def cleanTarget(ctx: RuntimeContext, target: String, force: Boolean, recursive: Boolean): Outcome =
-    val dir = PathUtil.absFrom(ctx.baseDirectory, target)
+  /**
+   * Clean one already-resolved directory.
+   *
+   * `dir` is an absolute path that has already been expanded; `reported` is the path as the user
+   * wrote it, used only for log messages. The recursion below passes real directory entries back
+   * in as `dir`, so expansion must not run again: a directory legitimately named `$cache` or `~`
+   * is a name, not something to substitute.
+   */
+  private def cleanDirectory(
+    ctx:       RuntimeContext,
+    dir:       String,
+    reported:  String,
+    force:     Boolean,
+    recursive: Boolean,
+  ): Outcome =
     if !ctx.fs.isDir(dir) then
-      ctx.log.debug(s"Ignoring nonexistent directory $target")
+      ctx.log.debug(s"Ignoring nonexistent directory $reported")
       Outcome.Ok
     else
       ctx.withFilesystem(ctx.fs.listDir(dir), _ => s"Failed to list directory $dir").fold(Outcome.Failed) { names =>
         names.foldLeft(Outcome.Ok) { (outcome, name) =>
           val path = PathUtil.join(dir, name)
           val recursiveOutcome =
-            if recursive && ctx.fs.isDir(path) && !ctx.fs.isSymlink(path) then cleanTarget(ctx, path, force, recursive)
+            if recursive && ctx.fs.isDir(path) && !ctx.fs.isSymlink(path) then
+              cleanDirectory(ctx, path, path, force, recursive)
             else Outcome.Ok
 
           val removeOutcome =

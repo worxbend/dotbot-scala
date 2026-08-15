@@ -45,8 +45,8 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
     rawPath:     String,
     options:     LinkOptions,
   ): Outcome =
-    val linkName = PathUtil.path(rawLinkName)
-    val sourcePath = PathUtil.clean(PathUtil.path(rawPath))
+    val linkName = ctx.paths.path(rawLinkName)
+    val sourcePath = PathUtil.clean(ctx.paths.path(rawPath))
     if !conditionAllowsLink(ctx, options) then
       ctx.log.info(s"Skipping $linkName")
       Outcome.Ok
@@ -71,8 +71,8 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
     linkName:   String,
     options:    LinkOptions,
   ): Outcome =
-    val pattern = PathUtil.absFrom(ctx.baseDirectory, sourcePath)
-    val excludes = options.exclude.map(item => PathUtil.absFrom(ctx.baseDirectory, PathUtil.path(item)))
+    val pattern = ctx.paths.absFromExpanded(ctx.baseDirectory, sourcePath)
+    val excludes = options.exclude.map(item => ctx.paths.absFrom(ctx.baseDirectory, item))
     Glob.createGlobResults(pattern, excludes) match
       case Left(error) =>
         ctx.log.warning(s"Unable to expand glob '$sourcePath': ${error.render}")
@@ -104,13 +104,17 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
     globbed:  Boolean,
   ): Outcome =
     val link = resolveLink(ctx, target, linkName, options)
-    val parentOutcome =
-      if options.create then createParent(ctx, link.linkPath)
-      else Outcome.Ok
+    // The missing-target check comes before `createParent`, which really does create directories.
+    // With the two the other way round, a link whose source does not exist still left an empty
+    // directory tree behind: the run reported failure but had already changed the filesystem, and
+    // neither a re-run nor `--dry-run` predicted it.
     if !globbed && !options.ignoreMissing && !ctx.fs.exists(link.absoluteTarget) then
       ctx.log.warning(s"Nonexistent target ${link.linkName} -> ${link.target}")
       Outcome.Failed
     else
+      val parentOutcome =
+        if options.create then createParent(ctx, link.linkPath)
+        else Outcome.Ok
       val backupResult =
         if options.backup then backup(ctx, link)
         else BackupResult.NotNeeded
@@ -136,8 +140,8 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
 
   private def resolveLink(ctx: RuntimeContext, target: String, linkName: String, options: LinkOptions): LinkResolution =
     val base = baseDir(ctx, options.canonicalize)
-    val absoluteTarget = PathUtil.absFrom(base, target)
-    val linkPath = PathUtil.absFrom(ctx.baseDirectory, linkName)
+    val absoluteTarget = ctx.paths.absFromExpanded(base, target)
+    val linkPath = ctx.paths.absFromExpanded(ctx.baseDirectory, linkName)
     val targetPath =
       if options.relative then PathUtil.relative(PathUtil.dirname(linkPath), absoluteTarget)
       else absoluteTarget
@@ -192,7 +196,7 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
     if ctx.fs.exists(link.linkPath) && !ctx.fs.isSymlink(link.linkPath) then
       val timestamp = BackupTimestampFormatter.format(ctx.clock.instant().atZone(ctx.clock.getZone))
       val backupName = s"${link.linkName}.dotbot-backup.$timestamp"
-      val backupPath = PathUtil.absFrom(ctx.baseDirectory, backupName)
+      val backupPath = ctx.paths.absFromExpanded(ctx.baseDirectory, backupName)
       if ctx.options.dryRun then
         ctx.log.action(s"Would backup ${link.linkName} to $backupName")
         BackupResult.BackedUp
