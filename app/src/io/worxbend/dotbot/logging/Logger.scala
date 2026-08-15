@@ -78,26 +78,30 @@ final class Logger(
 
   private def log(level: Level, message: String): Unit =
     if level.rank >= minimum.rank then
-      val badge = s"${style(level)}${symbol(level)}${label(level)}${reset}"
-      out.println(s"$badge ${messageStyle(level)}$message$reset")
+      val name = label(level)
+      // The badge is styled, but the padding that aligns messages into a column is not: keeping
+      // spaces outside the ANSI reset makes the plain and colored forms line up identically.
+      val badge = s"${style(level)}${symbol(level)}$name${reset}"
+      val padding = " " * (Logger.LabelWidth - name.length)
+      out.println(s"$badge$padding${messageStyle(level)}$message$reset")
 
   private def label(level: Level): String =
     level match
-      case Level.Debug   => "debug "
-      case Level.Info    => "info  "
-      case Level.Action  => "step  "
-      case Level.Warning => "warn  "
-      case Level.Error   => "error "
+      case Level.Debug   => "debug"
+      case Level.Info    => "info"
+      case Level.Action  => "step"
+      case Level.Warning => "warn"
+      case Level.Error   => "error"
 
   private def symbol(level: Level): String =
-    if stylishSymbols then
+    if !stylishSymbols then ""
+    else
       level match
         case Level.Debug   => "🐞 "
         case Level.Info    => "🪄 "
         case Level.Action  => "🚀 "
         case Level.Warning => "⚠️  "
         case Level.Error   => "💥 "
-    else "    "
 
   private def style(level: Level): String =
     if !color then ""
@@ -116,6 +120,12 @@ final class Logger(
     if color then fansi.Attr.Reset.escape else ""
 
 object Logger:
+  /**
+   * Column width reserved for the level label, so messages start at the same offset on every line.
+   * Locked by `LoggerSuite` as part of the output contract.
+   */
+  private[logging] val LabelWidth: Int = 6
+
   /**
    * Create a logger with default level (`Action`) and auto-detected
    * color + symbol capabilities.
