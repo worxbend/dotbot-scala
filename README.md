@@ -13,7 +13,7 @@
 
 `dotbot-scala` is a Scala 3 implementation of the core [Dotbot](https://github.com/anishathalye/dotbot) workflow for bootstrapping dotfiles. It focuses on typed parsing, predictable planning, native binaries, and a small CLI surface that is easy to automate.
 
-It mirrors the built-in directive workflow supported by `dotbot-go` and intentionally omits Python plugin support.
+It implements the same built-in directive workflow as [`dotbot-go`](https://github.com/worxbend/dotbot-go) and intentionally omits Python plugin support. The two are close but not identical — see [Differences from dotbot-go](#differences-from-dotbot-go).
 
 ## Highlights
 
@@ -156,6 +156,60 @@ This project targets the core Dotbot workflow and POSIX-like systems. Native CI 
 - `linux-arm64`
 
 Python plugins are out of scope. If you need plugin execution, use upstream Dotbot.
+
+## Differences from dotbot-go
+
+`dotbot-scala` and [`dotbot-go`](https://github.com/worxbend/dotbot-go) implement the same five
+directives (`defaults`, `clean`, `create`, `link`, `shell`), the same `apply` / `validate` / `plan`
+modes, and the same core options. A configuration that uses one directive per task entry, quoted
+file modes, and no exotic flags behaves identically under both. The differences below are the ones
+worth knowing before moving a configuration between them.
+
+### Configuration formats
+
+| Format | dotbot-go | dotbot-scala |
+| --- | --- | --- |
+| YAML, JSON, TOML | yes | yes |
+| JSON5 | yes | no — `.json5` is rejected |
+| HOCON (`.conf`, `.hocon`) | no | yes |
+
+### Command-line options
+
+- `-Q, --super-quiet` exists in `dotbot-go` only.
+- `--emoji` / `--no-emoji` and the decorated plan output exist in `dotbot-scala` only.
+
+### Behavior
+
+**File modes written as numbers.** `dotbot-scala` reads a bare number as octal digits, so
+`mode: 0755` and `mode: 755` both mean `rwxr-xr-x`, and a value that is not valid octal
+(`mode: 800`) is rejected. `dotbot-go` uses the number as its host YAML parser produced it, which
+gives the same answer for `0755` but reads `mode: 755` as octal `1363`. A mode written as the
+decimal equivalent (`mode: 493`) works in `dotbot-go` and is rejected here — write `0755` instead.
+
+**Unknown directive names.** `dotbot-scala` rejects a name that is not a directive in `--only` or
+`--except`. `dotbot-go` compares the raw text, so a typo such as `--only lnik` matches no directive,
+skips every action, and still exits `0`.
+
+**Warnings and errors.** `dotbot-scala` writes them to stderr, so `plan --output json` can be
+redirected to a file safely. `dotbot-go` writes all output to stdout.
+
+**Shell used by the `shell` directive.** `dotbot-scala` always uses `/bin/sh`. `dotbot-go` uses
+`$SHELL` and falls back to `/bin/sh`, so a directive written in POSIX shell can fail under a
+non-POSIX login shell such as fish or tcsh.
+
+**Environment variables that are not set.** `dotbot-scala` leaves `$MISSING` in the path exactly as
+written, matching upstream Dotbot's Python behavior, so the path fails visibly instead of quietly
+resolving somewhere else. `dotbot-go` substitutes an empty string, which turns
+`$XDG_CONFIG_HOME/nvim` into `/nvim` when the variable is unset.
+
+**Option checking in `validate`.** `dotbot-scala` checks each directive's options against the set
+that directive accepts, so a mistyped value (`force: yes`, which YAML reads as a string) or a
+misspelled key (`relnk`) is reported by name. `dotbot-go` has no equivalent check.
+
+**Directive order in HOCON.** HOCON is `dotbot-scala` only, and it records just the line a value came
+from. Several directives written on one line inside a single task therefore cannot be ordered, and
+that is reported as an error rather than guessed at. Write one directive per task entry, or one per
+line. YAML, JSON and TOML have no such limitation.
 
 ## Build
 
