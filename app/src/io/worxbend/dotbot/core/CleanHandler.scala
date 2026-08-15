@@ -19,7 +19,9 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
     entry match
       case CleanEntry.Target(target, force, recursive) =>
         cleanDirectory(ctx, ctx.paths.absFrom(ctx.baseDirectory, target), target, force, recursive)
-      case CleanEntry.Invalid                         => Outcome.Failed
+      case CleanEntry.Invalid(description) =>
+        ctx.log.warning(s"Skipping clean entry that is not a path: $description")
+        Outcome.Failed
 
   override protected def allSuccessfulMessage: String =
     "All targets have been cleaned"

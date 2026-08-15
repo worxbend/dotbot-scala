@@ -257,16 +257,16 @@ class DirectiveDecoderSuite extends munit.FunSuite:
   test("execute mode keeps malformed entries as soft failures") {
     assertEquals(
       summon[ConfigDecoder[CreateSpec]].decode(arr(num(1)), DirectiveDefaults.empty, DecodeMode.Execute),
-      Right(CreateSpec(Vector(CreateEntry.Invalid))),
+      Right(CreateSpec(Vector(CreateEntry.Invalid("1")))),
     )
     assertEquals(
       summon[ConfigDecoder[CleanSpec]].decode(arr(num(1)), DirectiveDefaults.empty, DecodeMode.Execute),
-      Right(CleanSpec(Vector(CleanEntry.Invalid))),
+      Right(CleanSpec(Vector(CleanEntry.Invalid("1")))),
     )
     assertEquals(
       summon[ConfigDecoder[ShellSpec]]
         .decode(arr(obj("description" -> str("missing command"))), DirectiveDefaults.empty, DecodeMode.Execute),
-      Right(ShellSpec(Vector(ShellEntry.Invalid))),
+      Right(ShellSpec(Vector(ShellEntry.Invalid("{description: \"missing command\"}")))),
     )
     assertEquals(
       summon[ConfigDecoder[LinkSpec]]

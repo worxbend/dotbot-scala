@@ -27,14 +27,16 @@ object DirectiveDefaults:
 
 enum CreateEntry:
   case Path(path: String, mode: FileMode)
-  case Invalid
+  /** An entry that could not be understood. `description` quotes what the user wrote. */
+  case Invalid(description: String)
 
 final case class CreateSpec(entries: Vector[CreateEntry]) extends DirectiveSpec:
   def directive: Directive = Directive.Create
 
 enum CleanEntry:
   case Target(path: String, force: Boolean, recursive: Boolean)
-  case Invalid
+  /** An entry that could not be understood. `description` quotes what the user wrote. */
+  case Invalid(description: String)
 
 final case class CleanSpec(entries: Vector[CleanEntry]) extends DirectiveSpec:
   def directive: Directive = Directive.Clean
@@ -55,7 +57,8 @@ enum ShellEntry:
     stdout:      Boolean,
     stderr:      Boolean,
   )
-  case Invalid
+  /** An entry that could not be understood. `description` quotes what the user wrote. */
+  case Invalid(description: String)
 
 final case class ShellSpec(entries: Vector[ShellEntry]) extends DirectiveSpec:
   def directive: Directive = Directive.Shell

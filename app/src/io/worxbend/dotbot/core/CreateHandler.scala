@@ -16,7 +16,9 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
   override protected def executeEntry(ctx: RuntimeContext, entry: CreateEntry): Outcome =
     entry match
       case CreateEntry.Path(path, mode) => createPath(ctx, path, mode)
-      case CreateEntry.Invalid          => Outcome.Failed
+      case CreateEntry.Invalid(description) =>
+        ctx.log.warning(s"Skipping create entry that is not a path: $description")
+        Outcome.Failed
 
   override protected def allSuccessfulMessage: String =
     "All paths have been set up"

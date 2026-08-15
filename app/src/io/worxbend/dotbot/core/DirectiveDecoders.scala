@@ -88,7 +88,7 @@ object DirectiveDecoders:
         CreateSpec(
           paths.map {
             case ConfigValue.StringValue(path) => CreateEntry.Path(path, defaultMode)
-            case _                            => CreateEntry.Invalid
+            case other                         => CreateEntry.Invalid(other.describe)
           },
         ),
       )
@@ -135,7 +135,7 @@ object DirectiveDecoders:
         CleanSpec(
           items.map {
             case ConfigValue.StringValue(target) => CleanEntry.Target(target, defaultForce, defaultRecursive)
-            case _                               => CleanEntry.Invalid
+            case other                           => CleanEntry.Invalid(other.describe)
           },
         ),
       )
@@ -245,7 +245,7 @@ object DirectiveDecoders:
     mode:     DecodeMode,
   ): Either[DotbotError, ShellEntry] =
     shellCommandSpec(item) match
-      case None => Right(ShellEntry.Invalid)
+      case None => Right(ShellEntry.Invalid(item.describe))
       case Some((command, message)) =>
         // Only a map form carries options; the string and [command, description] list forms have
         // no keys to check.

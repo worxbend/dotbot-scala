@@ -17,7 +17,9 @@ final class ShellHandler extends BatchedDirectiveHandler[ShellSpec, ShellEntry]:
 
   override protected def executeEntry(ctx: RuntimeContext, entry: ShellEntry): Outcome =
     entry match
-      case ShellEntry.Invalid => Outcome.Failed
+      case ShellEntry.Invalid(description) =>
+        ctx.log.warning(s"Skipping shell entry without a command: $description")
+        Outcome.Failed
       case command: ShellEntry.Command => runCommand(ctx, command)
 
   override protected def allSuccessfulMessage: String =
