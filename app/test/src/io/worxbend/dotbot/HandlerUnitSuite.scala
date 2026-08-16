@@ -400,6 +400,35 @@ class HandlerUnitSuite extends munit.FunSuite:
     )
   }
 
+  test("link handler expands a glob through the filesystem port") {
+    val base = "/workspace"
+    val fs = FakeFilesystem(
+      Map(
+        base -> FakeEntry.Directory,
+        PathUtil.join(base, "source") -> FakeEntry.Directory,
+        PathUtil.join(base, "source", "a.txt") -> FakeEntry.File,
+        PathUtil.join(base, "source", "b.txt") -> FakeEntry.File,
+        PathUtil.join(base, "dest") -> FakeEntry.Directory,
+      ),
+    )
+    val runtime = TestRuntime(baseDirectory = base, fs = fs)
+    val spec = LinkSpec(None, Vector(LinkEntry.Link("dest", "source/*", LinkOptions(glob = true))))
+
+    // Globbing used to call `java.nio.file.Files` directly from core, so it reached the real disk
+    // whatever filesystem was injected and this test could not be written at all.
+    assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
+    assert(fs.isSymlink(PathUtil.join(base, "dest", "source", "a.txt")))
+    assert(fs.isSymlink(PathUtil.join(base, "dest", "source", "b.txt")))
+    assertEquals(
+      runtime.output.toString,
+      """debug Globs from 'source/*': Vector("/workspace/source/a.txt", "/workspace/source/b.txt")
+        |step  Creating symlink dest/source/a.txt -> /workspace/source/a.txt
+        |step  Creating symlink dest/source/b.txt -> /workspace/source/b.txt
+        |info  All links have been set up
+        |""".stripMargin,
+    )
+  }
+
   test("link handler does not run the conditional command during a dry run") {
     val base = "/workspace"
     val target = PathUtil.join(base, "source.txt")

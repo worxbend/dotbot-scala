@@ -34,6 +34,15 @@ object OsFilesystem extends Filesystem:
       finally stream.close()
     .toEither
 
+  def walk(root: String, maxDepth: Int): Either[Throwable, Vector[String]] =
+    Try:
+      if !Files.exists(Paths.get(root)) then Vector.empty
+      else
+        val stream = Files.walk(Paths.get(root), maxDepth)
+        try stream.iterator().asScala.map(_.normalize().toString).toVector
+        finally stream.close()
+    .toEither
+
   def mkdirAll(path: String): Either[Throwable, Unit] =
     Try:
       Files.createDirectories(Paths.get(path))

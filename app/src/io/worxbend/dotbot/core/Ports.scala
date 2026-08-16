@@ -21,6 +21,16 @@ trait Filesystem:
   def isDir(path: String): Boolean
   def isSymlink(path: String): Boolean
   def listDir(path: String): Either[Throwable, Vector[String]]
+
+  /**
+   * Every path in the tree under `root`, `root` itself included, no deeper than `maxDepth` levels
+   * below it.
+   *
+   * Glob expansion needs to see a whole subtree at once, which `listDir` can only do by recursing
+   * one directory at a time. Handing the walk to the port keeps the traversal — the part that
+   * touches a real disk — on the outside, so that pattern matching stays testable against a fake.
+   */
+  def walk(root: String, maxDepth: Int): Either[Throwable, Vector[String]]
   /**
    * Create a directory and any missing parents.
    *

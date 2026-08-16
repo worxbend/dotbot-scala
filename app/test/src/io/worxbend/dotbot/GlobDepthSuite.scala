@@ -1,6 +1,7 @@
 package io.worxbend.dotbot
 
 import io.worxbend.dotbot.core.Glob
+import io.worxbend.dotbot.fs.OsFilesystem
 
 /**
  * Globbing runs against the real filesystem, so these tests build a small tree in a temporary
@@ -18,7 +19,7 @@ class GlobDepthSuite extends munit.FunSuite:
     root
 
   private def globbed(pattern: String): Vector[String] =
-    Glob.glob(pattern).fold(error => fail(error.render), identity).sorted
+    Glob.glob(OsFilesystem, pattern).fold(error => fail(error.render), identity).sorted
 
   test("a single-star pattern matches only its own depth") {
     val root = tree()
@@ -67,7 +68,7 @@ class GlobDepthSuite extends munit.FunSuite:
     val root = tree()
 
     val matches = Glob
-      .createGlobResults(s"$root/config/*", Vector(s"$root/config/beta.conf"))
+      .createGlobResults(OsFilesystem, s"$root/config/*", Vector(s"$root/config/beta.conf"))
       .fold(error => fail(error.render), identity)
 
     assertEquals(
@@ -80,7 +81,7 @@ class GlobDepthSuite extends munit.FunSuite:
     val root = tree()
 
     val matches = Glob
-      .createGlobResults(s"$root/config/*", Vector(s"$root/config/*.conf"))
+      .createGlobResults(OsFilesystem, s"$root/config/*", Vector(s"$root/config/*.conf"))
       .fold(error => fail(error.render), identity)
 
     assertEquals(matches.map(_.stripPrefix(s"$root/")), Vector("config/nvim"))

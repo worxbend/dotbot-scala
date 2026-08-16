@@ -75,6 +75,19 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
           .sorted,
       )
 
+  def walk(root: String, maxDepth: Int): Either[Throwable, Vector[String]] =
+    val normalized = normalize(root)
+    if !entries.contains(normalized) then Right(Vector.empty)
+    else
+      val depthOf = (path: String) => path.stripPrefix(normalized).count(_ == '/')
+      Right(
+        entries.keysIterator
+          .filter(path => path == normalized || path.startsWith(normalized + "/"))
+          .filter(path => depthOf(path) <= maxDepth)
+          .toVector
+          .sorted,
+      )
+
   def mkdirAll(path: String): Either[Throwable, Unit] =
     val normalized = normalize(path)
     entries.update(normalized, FakeEntry.Directory)

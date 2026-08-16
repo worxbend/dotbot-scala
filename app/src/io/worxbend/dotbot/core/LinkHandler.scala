@@ -86,7 +86,7 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
   ): Outcome =
     val pattern = ctx.paths.absFromExpanded(ctx.baseDirectory, sourcePath)
     val excludes = options.exclude.map(item => ctx.paths.absFrom(ctx.baseDirectory, item))
-    Glob.createGlobResults(pattern, excludes) match
+    Glob.createGlobResults(ctx.fs, pattern, excludes) match
       case Left(error) =>
         ctx.log.warning(s"Unable to expand glob '$sourcePath': ${error.render}")
         Outcome.Failed

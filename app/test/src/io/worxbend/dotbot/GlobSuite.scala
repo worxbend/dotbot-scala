@@ -1,6 +1,7 @@
 package io.worxbend.dotbot
 
 import io.worxbend.dotbot.core.Glob
+import io.worxbend.dotbot.fs.OsFilesystem
 
 class GlobSuite extends munit.FunSuite:
   test("hasGlobChars recognizes shell glob metacharacters") {
@@ -15,7 +16,7 @@ class GlobSuite extends munit.FunSuite:
     os.makeDir.all(root / "one" / "nested")
     os.write(root / "one" / "nested" / "file.txt", "content\n")
 
-    val matches = Glob.glob(s"$root/**").fold(error => fail(error.render), identity)
+    val matches = Glob.glob(OsFilesystem, s"$root/**").fold(error => fail(error.render), identity)
 
     assertEquals(matches, Vector((root / "one" / "nested" / "file.txt").toString))
   }
@@ -26,7 +27,7 @@ class GlobSuite extends munit.FunSuite:
     os.write(root / "a.txt", "a\n")
     os.write(root / "skip.txt", "skip\n")
 
-    val matches = Glob.createGlobResults(s"$root/*.txt", Vector(s"$root/skip.txt")).fold(error => fail(error.render), identity)
+    val matches = Glob.createGlobResults(OsFilesystem, s"$root/*.txt", Vector(s"$root/skip.txt")).fold(error => fail(error.render), identity)
 
     assertEquals(matches, Vector((root / "a.txt").toString, (root / "b.txt").toString))
   }
