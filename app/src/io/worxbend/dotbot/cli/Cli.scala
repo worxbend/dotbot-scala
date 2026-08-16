@@ -15,6 +15,7 @@ import picocli.CommandLine.ParseResult
 
 import java.io.PrintStream
 import java.io.PrintWriter
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 
@@ -34,8 +35,10 @@ private final case class CliState(
   noEmoji:       Boolean = false,
   dryRun:        Boolean = false,
   exitOnFailure: Boolean = false,
+  shellTimeout:  Duration = CliState.DefaultShellTimeout,
   planOutput:    OutputFormatArgument = OutputFormatArgument.Valid(OutputFormat.Text),
   unknownDirectives: Vector[String] = Vector.empty,
+  invalidShellTimeouts: Vector[String] = Vector.empty,
 ):
   /**
    * Merge a nested subcommand state with values inherited from the parent command.
@@ -54,7 +57,9 @@ private final case class CliState(
       noEmoji = parent.noEmoji || noEmoji,
       dryRun = parent.dryRun || dryRun,
       exitOnFailure = parent.exitOnFailure || exitOnFailure,
+      shellTimeout = if shellTimeout != CliState.DefaultShellTimeout then shellTimeout else parent.shellTimeout,
       unknownDirectives = parent.unknownDirectives ++ unknownDirectives,
+      invalidShellTimeouts = parent.invalidShellTimeouts ++ invalidShellTimeouts,
       planOutput =
         if planOutput != OutputFormatArgument.Valid(OutputFormat.Text) then planOutput
         else parent.planOutput,
@@ -74,11 +79,15 @@ private final case class CliState(
       forceEmoji = forceEmoji,
       noEmoji = noEmoji,
       exitOnFailure = exitOnFailure,
+      shellTimeout = shellTimeout,
       mode = mode,
     )
 
   def planMode: RunMode =
     planOutput.toRunMode
+
+private object CliState:
+  val DefaultShellTimeout: Duration = AppOptions().shellTimeout
 
 /**
  * Thread-safe builder that owns Picocli mutation side effects.
@@ -129,6 +138,12 @@ private final class CliStateBuilder:
   def enableExitOnFailure(): Unit =
     update(_.copy(exitOnFailure = true))
 
+  def setShellTimeout(value: Duration): Unit =
+    update(_.copy(shellTimeout = value))
+
+  def addInvalidShellTimeout(value: String): Unit =
+    update(state => state.copy(invalidShellTimeouts = state.invalidShellTimeouts :+ value))
+
   def setPlanOutput(value: OutputFormatArgument): Unit =
     update(_.copy(planOutput = value))
 
@@ -153,10 +168,13 @@ private enum CliCommand:
       case CliCommand.Unknown         => 1
 
   private def run(state: CliState, options: AppOptions, stdout: PrintStream, stderr: PrintStream): Int =
-    if state.unknownDirectives.isEmpty then DotbotApp.run(options, stdout, stderr = stderr)
-    else
+    if state.unknownDirectives.nonEmpty then
       stderr.println(s"error unknown directive(s): ${state.unknownDirectives.mkString(", ")}")
       1
+    else if state.invalidShellTimeouts.nonEmpty then
+      stderr.println(s"error invalid --shell-timeout value(s): ${state.invalidShellTimeouts.mkString(", ")}")
+      1
+    else DotbotApp.run(options, stdout, stderr = stderr)
 
 /**
  * Top-level CLI entrypoint and command wiring.
@@ -283,6 +301,14 @@ object Cli:
   private def addApplyOptions(spec: CommandSpec, state: CliStateBuilder): Unit =
     spec.addOption(booleanOption(Array("-n", "--dry-run"), "print what would be done, without doing it", state.enableDryRun)): Unit
     spec.addOption(booleanOption(Array("-x", "--exit-on-failure"), "exit after first failed directive", state.enableExitOnFailure)): Unit
+    spec.addOption(
+      stringOption(
+        Array("--shell-timeout"),
+        "how long a shell command or link condition may run, in seconds (default 600)",
+        value => applyShellTimeout(state, value),
+        "SECONDS",
+      ),
+    ): Unit
 
   private def verboseOption(state: CliStateBuilder): OptionSpec =
     OptionSpec.builder(Array("-v", "--verbose"))
@@ -332,6 +358,21 @@ object Cli:
     val unknown = names.filter(Directive.fromString(_).isEmpty)
     if unknown.nonEmpty then Left(unknown)
     else Right(names.flatMap(Directive.fromString))
+
+  /**
+   * Parse a `--shell-timeout` value, given in whole seconds.
+   *
+   * A value that is not a positive number is rejected rather than quietly falling back to the
+   * default: a typo that silently restored the ten-minute timeout would look exactly like the flag
+   * working, and would only show up as a hang.
+   */
+  private[cli] def parseShellTimeout(value: String): Option[Duration] =
+    value.toIntOption.filter(_ > 0).map(seconds => Duration.ofSeconds(seconds.toLong))
+
+  private def applyShellTimeout(state: CliStateBuilder, value: String): Unit =
+    parseShellTimeout(value) match
+      case Some(timeout) => state.setShellTimeout(timeout)
+      case None          => state.addInvalidShellTimeout(value)
 
   private def applyDirectiveList(
     state: CliStateBuilder,

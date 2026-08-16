@@ -29,6 +29,18 @@ class CliSuite extends munit.FunSuite:
     assertEquals(Cli.splitDirectiveList("clean,lnik,shel"), Left(Vector("lnik", "shel")))
   }
 
+  test("a shell timeout is read as whole seconds") {
+    assertEquals(Cli.parseShellTimeout("30"), Some(java.time.Duration.ofSeconds(30)))
+  }
+
+  test("a shell timeout that is not a positive number is rejected rather than defaulted") {
+    // Falling back to the default would look exactly like the flag working, and would surface
+    // only as a hang much later.
+    assertEquals(Cli.parseShellTimeout("abc"), None)
+    assertEquals(Cli.parseShellTimeout("0"), None)
+    assertEquals(Cli.parseShellTimeout("-5"), None)
+  }
+
   test("directive names are matched exactly") {
     assertEquals(Cli.splitDirectiveList("Link"), Left(Vector("Link")))
     assertEquals(Cli.splitDirectiveList("links"), Left(Vector("links")))

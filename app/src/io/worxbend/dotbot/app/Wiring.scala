@@ -25,4 +25,5 @@ private[app] object Wiring:
       exitOnFailure = options.exitOnFailure,
       dryRun = options.dryRun,
       verbose = options.verbose,
+      shellTimeout = options.shellTimeout,
     )

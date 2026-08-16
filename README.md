@@ -109,6 +109,7 @@ Common options:
 | `--except shell` | Skip the listed directives. Unknown names are an error. |
 | `-n, --dry-run` | Print intended apply actions without mutating the filesystem. |
 | `-x, --exit-on-failure` | Stop after the first failed directive. |
+| `--shell-timeout SECONDS` | How long one `shell` command or link `if` condition may run. Defaults to 600. |
 | `-q, --quiet` | Show only warnings and errors. |
 | `-v, --verbose` | Show informational logs. Use `-vv` for debug-level output. |
 | `--force-color` / `--no-color` | Force or disable ANSI color output. |

@@ -13,8 +13,11 @@ import io.worxbend.dotbot.logging.Logger
 import io.worxbend.dotbot.logging.TerminalCapabilities
 import io.worxbend.dotbot.shell.OsShellRunner
 
+import io.worxbend.dotbot.core.CoreOptions
+
 import java.io.PrintStream
 import java.time.Clock
+import java.time.Duration
 
 /**
  * Runtime configuration passed to `DotbotApp`.
@@ -31,6 +34,7 @@ import java.time.Clock
  * @param forceEmoji force emoji/symbol output.
  * @param noEmoji disable emoji/symbol output.
  * @param exitOnFailure abort after first failed directive.
+ * @param shellTimeout how long a single `shell` command or link `if` condition may run.
  * @param mode execution mode: apply, validate, or plan.
  */
 final case class AppOptions(
@@ -46,6 +50,7 @@ final case class AppOptions(
   forceEmoji:    Boolean = false,
   noEmoji:       Boolean = false,
   exitOnFailure: Boolean = false,
+  shellTimeout:  Duration = CoreOptions().shellTimeout,
   mode:          RunMode = RunMode.Apply,
 )
 
