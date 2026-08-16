@@ -39,9 +39,23 @@ object OsShellRunner extends ShellRunner:
 
       val finished = process.waitFor(options.timeout.toMillis, TimeUnit.MILLISECONDS)
       if !finished then
-        process.destroyForcibly()
+        terminate(process)
         ShellExit.TimedOut
       else ShellExit.Completed(process.exitValue())
+
+  /**
+   * Kill a timed-out command and everything it started.
+   *
+   * `destroyForcibly` only signals the shell itself and returns before it has died. A command
+   * such as `foo | bar &` leaves its children running, still holding the pipes this scope is
+   * about to wait on, so both the orphans and the wait outlive the timeout. Descendants are
+   * therefore killed first, and the wait afterwards is what makes the timeout mean the command
+   * has actually stopped.
+   */
+  private def terminate(process: Process): Unit =
+    process.descendants().forEach(_.destroyForcibly(): Unit)
+    process.destroyForcibly()
+    process.waitFor(): Unit
 
   /**
    * Build the argv used to run a `shell` directive.

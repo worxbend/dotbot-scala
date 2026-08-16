@@ -54,6 +54,22 @@ class ShellCommandSuite extends munit.FunSuite:
     assertEquals(exit.successful, false)
   }
 
+  test("a timed out command does not leave its children running") {
+    val root = os.temp.dir(prefix = "dotbot-scala-shell-orphan-")
+    val marker = root / "orphan.txt"
+
+    // The background child outlives the shell that started it, so killing only the shell would
+    // leave it to write the marker after the timeout has already been reported.
+    val exit = OsShellRunner.run(
+      s"(sleep 1; echo late > $marker) & sleep 5",
+      ShellOptions(cwd = root.toString, timeout = Duration.ofMillis(100)),
+    )
+
+    assertEquals(exit, ShellExit.TimedOut)
+    Thread.sleep(2000)
+    assert(!os.exists(marker), "a descendant of the timed out command survived and kept working")
+  }
+
   test("commands run in the directory they are given") {
     val root = os.temp.dir(prefix = "dotbot-scala-shell-cwd-")
     os.write(root / "marker.txt", "here")
