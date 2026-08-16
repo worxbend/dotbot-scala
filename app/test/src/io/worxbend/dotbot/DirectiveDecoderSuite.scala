@@ -100,8 +100,8 @@ class DirectiveDecoderSuite extends munit.FunSuite:
       Right(
         CleanSpec(
           Vector(
-            CleanEntry.Target("cache", force = false, recursive = true),
             CleanEntry.Target("logs", force = true, recursive = true),
+            CleanEntry.Target("cache", force = false, recursive = true),
           ),
         ),
       ),
@@ -128,6 +128,26 @@ class DirectiveDecoderSuite extends munit.FunSuite:
     )
   }
 
+  test("link decoder keeps entries in the order they were written, not alphabetical order") {
+    val decoded = summon[ConfigDecoder[LinkSpec]]
+      .decode(
+        obj(
+          "zzz.txt" -> str("source.txt"),
+          "aaa.txt" -> str("source.txt"),
+          "mmm.txt" -> str("source.txt"),
+        ),
+        DirectiveDefaults.empty,
+        DecodeMode.Validate,
+      )
+
+    // A later entry can depend on an earlier one having run — through an `if` condition, or
+    // through a directory an earlier entry created — so written order is the contract.
+    assertEquals(
+      decoded.map(_.entries.collect { case LinkEntry.Link(name, _, _) => name }),
+      Right(Vector("zzz.txt", "aaa.txt", "mmm.txt")),
+    )
+  }
+
   test("link decoder maps null targets to dot-stripped destination basenames") {
     val decoded = summon[ConfigDecoder[LinkSpec]]
       .decode(
@@ -145,8 +165,8 @@ class DirectiveDecoderSuite extends munit.FunSuite:
         LinkSpec(
           None,
           Vector(
-            LinkEntry.Link("~/.config/nvim", "nvim", LinkOptions()),
             LinkEntry.Link("~/.vimrc", "vimrc", LinkOptions()),
+            LinkEntry.Link("~/.config/nvim", "nvim", LinkOptions()),
           ),
         ),
       ),

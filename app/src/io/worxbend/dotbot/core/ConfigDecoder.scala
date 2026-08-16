@@ -26,15 +26,19 @@ object ConfigDecoder:
   def asMap(value: ConfigValue, message: String): Either[DotbotError, Map[String, ConfigValue]] =
     value.asMap.toRight(decodeError(message))
 
-  def mapOrList[A](
+  /** Like [[asMap]], but keeping the order the fields were written in. */
+  def asFields(value: ConfigValue, message: String): Either[DotbotError, ConfigFields] =
+    value.asFields.toRight(decodeError(message))
+
+  def fieldsOrList[A](
     value:   ConfigValue,
     message: String,
   )(
-    decodeMap:  Map[String, ConfigValue] => Either[DotbotError, A],
-    decodeList: Vector[ConfigValue] => Either[DotbotError, A],
+    decodeFields: ConfigFields => Either[DotbotError, A],
+    decodeList:   Vector[ConfigValue] => Either[DotbotError, A],
   ): Either[DotbotError, A] =
-    value.asMap match
-      case Some(map) => decodeMap(map)
+    value.asFields match
+      case Some(fields) => decodeFields(fields)
       case None =>
         value.asArray match
           case Some(items) => decodeList(items)

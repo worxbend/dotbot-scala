@@ -11,8 +11,8 @@ object DirectiveDecoders:
           "default create mode must be an octal string or number",
           mode,
         )
-        spec <- ConfigDecoder.mapOrList(data, "create directive must be a list or map")(
-          map => decodeCreateMap(map, defaultMode, mode),
+        spec <- ConfigDecoder.fieldsOrList(data, "create directive must be a list or map")(
+          fields => decodeCreateMap(fields, defaultMode, mode),
           paths => decodeCreateArray(paths, defaultMode, mode),
         )
       yield spec
@@ -23,8 +23,8 @@ object DirectiveDecoders:
       val cleanDefaults = defaults.section(Directive.Clean)
       for
         _ <- validateDefaults(Directive.Clean, defaults, mode)
-        spec <- ConfigDecoder.mapOrList(data, "clean directive must be a list or map")(
-          map => decodeCleanMap(map, cleanDefaults, mode),
+        spec <- ConfigDecoder.fieldsOrList(data, "clean directive must be a list or map")(
+          fields => decodeCleanMap(fields, cleanDefaults, mode),
           items => decodeCleanArray(items, cleanDefaults, mode),
         )
       yield spec
@@ -34,7 +34,7 @@ object DirectiveDecoders:
     ConfigDecoder.instance { (data, defaults, mode) =>
       for
         _ <- validateDefaults(Directive.Link, defaults, mode)
-        links <- ConfigDecoder.asMap(data, "link directive must be a map")
+        links <- ConfigDecoder.asFields(data, "link directive must be a map")
         spec <- decodeLinkSpec(links, defaults.section(Directive.Link), mode)
       yield spec
     }
@@ -66,7 +66,7 @@ object DirectiveDecoders:
         .fold(Right(()))(_.validate(defaults.section(directive), OptionContext.Defaults(directive.label)))
 
   private def decodeLinkSpec(
-    links:         Map[String, ConfigValue],
+    links:         ConfigFields,
     linkDefaults:  Map[String, ConfigValue],
     mode:          DecodeMode,
   ): Either[DotbotError, LinkSpec] =
@@ -94,14 +94,14 @@ object DirectiveDecoders:
       )
 
   private def decodeCreateMap(
-    map:         Map[String, ConfigValue],
+    fields:      ConfigFields,
     defaultMode: FileMode,
     mode:        DecodeMode,
   ): Either[DotbotError, CreateSpec] =
     val bad =
       if !mode.strict then None
       else
-        map.collectFirst {
+        fields.entries.collectFirst {
           case (path, value) if value != ConfigValue.NullValue && value.asMap.isEmpty =>
             s"create directive options for $path must be a map"
         }
@@ -109,8 +109,8 @@ object DirectiveDecoders:
     bad match
       case Some(error) => ConfigDecoder.fail(error)
       case None =>
-        EitherUtil.traverse(map.sortedKeys) { path =>
-          val local = map(path).asMap.getOrElse(Map.empty)
+        EitherUtil.traverse(fields.keys) { path =>
+          val local = fields(path).asMap.getOrElse(Map.empty)
           for
             _ <- validateEntry(OptionSchema.create, local, OptionContext.Entry(Directive.Create.label, path), mode)
             entryMode <- decodeFileMode(
@@ -141,7 +141,7 @@ object DirectiveDecoders:
       )
 
   private def decodeCleanMap(
-    map:           Map[String, ConfigValue],
+    fields:        ConfigFields,
     cleanDefaults: Map[String, ConfigValue],
     mode:          DecodeMode,
   ): Either[DotbotError, CleanSpec] =
@@ -150,7 +150,7 @@ object DirectiveDecoders:
     val bad =
       if !mode.strict then None
       else
-        map.collectFirst {
+        fields.entries.collectFirst {
           case (target, value) if value != ConfigValue.NullValue && value.asMap.isEmpty =>
             s"clean directive options for $target must be a map"
         }
@@ -158,8 +158,8 @@ object DirectiveDecoders:
     bad match
       case Some(error) => ConfigDecoder.fail(error)
       case None =>
-        EitherUtil.traverse(map.sortedKeys) { target =>
-          val local = map(target).asMap.getOrElse(Map.empty)
+        EitherUtil.traverse(fields.keys) { target =>
+          val local = fields(target).asMap.getOrElse(Map.empty)
           validateEntry(OptionSchema.clean, local, OptionContext.Entry(Directive.Clean.label, target), mode).map { _ =>
             CleanEntry.Target(
               target,
@@ -182,11 +182,11 @@ object DirectiveDecoders:
     if mode.strict then schema.validate(values, context) else Right(())
 
   private def decodeLinkEntries(
-    links:          Map[String, ConfigValue],
+    links:          ConfigFields,
     defaultOptions: LinkOptions,
     mode:           DecodeMode,
   ): Either[DotbotError, Vector[LinkEntry]] =
-    EitherUtil.traverse(links.sortedKeys)(linkName => decodeLinkEntry(linkName, links(linkName), defaultOptions, mode))
+    EitherUtil.traverse(links.keys)(linkName => decodeLinkEntry(linkName, links(linkName), defaultOptions, mode))
 
   private def decodeLinkEntry(
     linkName:       String,
