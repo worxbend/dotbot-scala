@@ -36,6 +36,6 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
       Outcome.Ok
     else
       ctx.log.action(s"Creating path $absolute")
-      if ctx.withFilesystem(ctx.fs.mkdirAll(absolute, mode), _ => s"Failed to create path $absolute").isEmpty then Outcome.Failed
+      if ctx.withFilesystem(ctx.fs.mkdirAll(absolute), _ => s"Failed to create path $absolute").isEmpty then Outcome.Failed
       else if ctx.withFilesystem(ctx.fs.chmod(absolute, mode), _ => s"Failed to set mode for path $absolute").isEmpty then Outcome.Failed
       else Outcome.Ok

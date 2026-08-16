@@ -40,7 +40,7 @@ class HandlerUnitSuite extends munit.FunSuite:
 
     assertEquals(CreateHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.hasDirectory(path))
-    assertEquals(fs.mkdirCalls, Vector(path -> FileMode.rwxAll))
+    assertEquals(fs.mkdirCalls, Vector(path))
     assertEquals(fs.chmodCalls, Vector(path -> FileMode.rwxAll))
     assertEquals(
       runtime.output.toString,
@@ -299,7 +299,7 @@ class HandlerUnitSuite extends munit.FunSuite:
     val spec = LinkSpec(None, Vector(LinkEntry.Link("nested/linked.txt", "source.txt", LinkOptions(create = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
-    assertEquals(fs.mkdirCalls, Vector(parent -> FileMode.rwxAll))
+    assertEquals(fs.mkdirCalls, Vector(parent))
     assertEquals(fs.readlink(link), Right(target))
     assertEquals(
       runtime.output.toString,

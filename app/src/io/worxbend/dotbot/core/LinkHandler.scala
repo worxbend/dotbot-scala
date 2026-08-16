@@ -173,7 +173,7 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
       ctx.log.action(s"Would create directory $parent")
       Outcome.Ok
     else
-      if ctx.withFilesystem(ctx.fs.mkdirAll(parent, FileMode.rwxAll), _ => s"Failed to create directory $parent").isEmpty then Outcome.Failed
+      if ctx.withFilesystem(ctx.fs.mkdirAll(parent), _ => s"Failed to create directory $parent").isEmpty then Outcome.Failed
       else
         ctx.log.action(s"Creating directory $parent")
         Outcome.Ok

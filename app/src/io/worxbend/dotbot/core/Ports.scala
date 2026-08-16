@@ -21,7 +21,14 @@ trait Filesystem:
   def isDir(path: String): Boolean
   def isSymlink(path: String): Boolean
   def listDir(path: String): Either[Throwable, Vector[String]]
-  def mkdirAll(path: String, mode: FileMode): Either[Throwable, Unit]
+  /**
+   * Create a directory and any missing parents.
+   *
+   * Deliberately takes no mode: the underlying call applies the process umask, and a caller that
+   * needs a specific mode follows up with `chmod`. The parameter used to be here and was silently
+   * ignored by the implementation, which promised an atomicity the code never delivered.
+   */
+  def mkdirAll(path: String): Either[Throwable, Unit]
   def chmod(path: String, mode: FileMode): Either[Throwable, Unit]
   def readlink(path: String): Either[Throwable, String]
   def realpath(path: String): Either[Throwable, String]

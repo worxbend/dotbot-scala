@@ -46,7 +46,7 @@ class HandlerRegressionSuite extends munit.FunSuite:
     val spec = LinkSpec(None, Vector(LinkEntry.Link("nested/config", "source.conf", LinkOptions(create = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
-    assertEquals(fs.mkdirCalls.map(_._1), Vector(s"$base/nested"))
+    assertEquals(fs.mkdirCalls, Vector(s"$base/nested"))
   }
 
   test("a directory named like a variable is not expanded during a recursive clean") {

@@ -34,7 +34,7 @@ object OsFilesystem extends Filesystem:
       finally stream.close()
     .toEither
 
-  def mkdirAll(path: String, mode: FileMode): Either[Throwable, Unit] =
+  def mkdirAll(path: String): Either[Throwable, Unit] =
     Try:
       Files.createDirectories(Paths.get(path))
       ()

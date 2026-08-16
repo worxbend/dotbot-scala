@@ -29,11 +29,11 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
   private val entries: MutableMap[String, FakeEntry] =
     MutableMap.from(initial.map { case (path, entry) => normalize(path) -> entry })
 
-  private val mkdirCalls0 = ArrayBuffer.empty[(String, FileMode)]
+  private val mkdirCalls0 = ArrayBuffer.empty[String]
   private val chmodCalls0 = ArrayBuffer.empty[(String, FileMode)]
   private val removeCalls0 = ArrayBuffer.empty[String]
 
-  def mkdirCalls: Vector[(String, FileMode)] = mkdirCalls0.toVector
+  def mkdirCalls: Vector[String] = mkdirCalls0.toVector
   def chmodCalls: Vector[(String, FileMode)] = chmodCalls0.toVector
   def removeCalls: Vector[String] = removeCalls0.toVector
   def paths: Set[String] = entries.keySet.toSet
@@ -75,10 +75,10 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
           .sorted,
       )
 
-  def mkdirAll(path: String, mode: FileMode): Either[Throwable, Unit] =
+  def mkdirAll(path: String): Either[Throwable, Unit] =
     val normalized = normalize(path)
     entries.update(normalized, FakeEntry.Directory)
-    mkdirCalls0 += (normalized -> mode)
+    mkdirCalls0 += normalized
     Right(())
 
   def chmod(path: String, mode: FileMode): Either[Throwable, Unit] =
