@@ -400,6 +400,32 @@ class HandlerUnitSuite extends munit.FunSuite:
     )
   }
 
+  test("link handler does not run the conditional command during a dry run") {
+    val base = "/workspace"
+    val target = PathUtil.join(base, "source.txt")
+    val fs = FakeFilesystem(
+      Map(
+        base -> FakeEntry.Directory,
+        target -> FakeEntry.File,
+      ),
+    )
+    val shell = ScriptedShellRunner(Vector.empty)
+    val runtime = TestRuntime(baseDirectory = base, options = CoreOptions(dryRun = true), fs = fs, shell = shell)
+    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(ifCommand = "touch marker"))))
+
+    assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
+    // The point of the test: an `if` command is a side effect, so `--dry-run` must report it
+    // rather than run it, and must still plan the link it guards.
+    assertEquals(shell.invocations, Vector.empty)
+    assertEquals(
+      runtime.output.toString,
+      """step  Would check condition [touch marker]
+        |step  Would create symlink linked.txt -> /workspace/source.txt
+        |info  All links have been set up
+        |""".stripMargin,
+    )
+  }
+
   test("link handler can create links for missing targets when ignore-missing is enabled") {
     val base = "/workspace"
     val link = PathUtil.join(base, "linked.txt")

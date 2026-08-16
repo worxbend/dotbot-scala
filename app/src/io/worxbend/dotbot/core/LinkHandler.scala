@@ -52,8 +52,21 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
       Outcome.Ok
     else processLinkSource(ctx, sourcePath, linkName, options)
 
+  /**
+   * Decide whether an entry's `if` condition permits the link.
+   *
+   * The condition is a shell command, so running it is a side effect like any other and
+   * `--dry-run` must not do it: inspecting an unfamiliar dotfiles repository with the flag whose
+   * whole purpose is to be safe used to execute whatever that repository's `if` conditions said.
+   * A dry run instead reports the command and assumes it would succeed, which makes the plan show
+   * every link the config could create.
+   */
   private def conditionAllowsLink(ctx: RuntimeContext, options: LinkOptions): Boolean =
-    options.ifCommand.isEmpty ||
+    if options.ifCommand.isEmpty then true
+    else if !ctx.performsSideEffects then
+      ctx.log.action(s"Would check condition [${options.ifCommand}]")
+      true
+    else
       ctx.shell.run(options.ifCommand, ShellOptions(cwd = ctx.baseDirectory, timeout = ctx.options.shellTimeout)).successful
 
   private def processLinkSource(

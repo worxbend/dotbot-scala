@@ -21,6 +21,16 @@ final case class RuntimeContext(
   clock:         Clock,
   paths:         PathResolver = PathResolver.system,
 ):
+  /**
+   * Whether this run is allowed to change anything outside the process.
+   *
+   * `--dry-run` promises to report what would happen without doing it, and that promise covers
+   * every path that reaches the filesystem or the shell, not only the obvious ones. Asking this
+   * question here rather than testing `options.dryRun` at each call site is what keeps a handler
+   * from quietly acquiring a side effect the flag does not cover.
+   */
+  def performsSideEffects: Boolean = !options.dryRun
+
   def withFilesystem[A](result: => Either[Throwable, A], onFailure: Throwable => String): Option[A] =
     result match
       case Left(error) =>
