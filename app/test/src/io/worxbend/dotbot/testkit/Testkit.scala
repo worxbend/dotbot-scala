@@ -29,14 +29,14 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
   private val entries: MutableMap[String, FakeEntry] =
     MutableMap.from(initial.map { case (path, entry) => normalize(path) -> entry })
 
-  private val mkdirCalls0 = ArrayBuffer.empty[String]
-  private val chmodCalls0 = ArrayBuffer.empty[(String, FileMode)]
+  private val mkdirCalls0  = ArrayBuffer.empty[String]
+  private val chmodCalls0  = ArrayBuffer.empty[(String, FileMode)]
   private val removeCalls0 = ArrayBuffer.empty[String]
 
-  def mkdirCalls: Vector[String] = mkdirCalls0.toVector
+  def mkdirCalls: Vector[String]             = mkdirCalls0.toVector
   def chmodCalls: Vector[(String, FileMode)] = chmodCalls0.toVector
-  def removeCalls: Vector[String] = removeCalls0.toVector
-  def paths: Set[String] = entries.keySet.toSet
+  def removeCalls: Vector[String]            = removeCalls0.toVector
+  def paths: Set[String]                     = entries.keySet.toSet
 
   def hasDirectory(path: String): Boolean =
     entries.get(normalize(path)).contains(FakeEntry.Directory)
@@ -119,7 +119,7 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
 
   def removeAll(path: String): Either[Throwable, Unit] =
     val normalized = normalize(path)
-    val removed = entries.keysIterator
+    val removed    = entries.keysIterator
       .filter(item => item == normalized || item.startsWith(normalized + "/"))
       .toVector
     removed.foreach(removeEntry)
@@ -128,13 +128,13 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
 
   def rename(from: String, to: String): Either[Throwable, Unit] =
     val normalizedFrom = normalize(from)
-    val normalizedTo = normalize(to)
+    val normalizedTo   = normalize(to)
     entries.get(normalizedFrom) match
       case Some(entry) =>
         removeEntry(normalizedFrom)
         entries.update(normalizedTo, entry)
         Right(())
-      case None => Left(NoSuchFileException(normalizedFrom))
+      case None        => Left(NoSuchFileException(normalizedFrom))
 
   def sameFile(a: String, b: String): Either[Throwable, Boolean] =
     Right(normalize(a) == normalize(b))
@@ -154,7 +154,7 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
 
   private def resolveLink(path: String, target: String): Option[String] =
     val targetPath = Paths.get(target)
-    val resolved =
+    val resolved   =
       if targetPath.isAbsolute then targetPath
       else Paths.get(normalize(path)).getParent.resolve(targetPath)
     Some(normalize(resolved.toString))
@@ -178,7 +178,8 @@ object FakeFilesystem:
 
 final case class ShellInvocation(command: String, options: ShellOptions)
 
-final class ScriptedShellRunner(results: Vector[ShellExit], default: ShellExit = ShellExit.Completed(0)) extends ShellRunner:
+final class ScriptedShellRunner(results: Vector[ShellExit], default: ShellExit = ShellExit.Completed(0))
+    extends ShellRunner:
   private val invocations0 = ArrayBuffer.empty[ShellInvocation]
 
   def invocations: Vector[ShellInvocation] = invocations0.toVector
@@ -196,7 +197,7 @@ object ScriptedShellRunner:
  * A fixed environment for tests, so path expansion never depends on the machine running them.
  */
 object TestEnvironment:
-  val HomeDirectory: String = "/home/test"
+  val HomeDirectory: String    = "/home/test"
   val WorkingDirectory: String = "/workspace"
 
   def apply(variables: Map[String, String] = Map.empty): Environment =
@@ -210,13 +211,13 @@ final case class CapturedRuntime(ctx: RuntimeContext, output: ByteArrayOutputStr
 
 object TestRuntime:
   def apply(
-    baseDirectory: String = "/workspace",
-    options:       CoreOptions = CoreOptions(),
-    fs:            Filesystem = FakeFilesystem.empty,
-    shell:         ShellRunner = ScriptedShellRunner.always(ShellExit.Completed(0)),
-    output:        ByteArrayOutputStream = ByteArrayOutputStream(),
-    clock:         Clock = Clock.systemUTC(),
-    paths:         PathResolver = TestEnvironment.resolver(),
+      baseDirectory: String = "/workspace",
+      options: CoreOptions = CoreOptions(),
+      fs: Filesystem = FakeFilesystem.empty,
+      shell: ShellRunner = ScriptedShellRunner.always(ShellExit.Completed(0)),
+      output: ByteArrayOutputStream = ByteArrayOutputStream(),
+      clock: Clock = Clock.systemUTC(),
+      paths: PathResolver = TestEnvironment.resolver(),
   ): CapturedRuntime =
     CapturedRuntime(
       RuntimeContext(

@@ -22,8 +22,8 @@ class CorePropertySuite extends munit.ScalaCheckSuite:
 
   property("relative paths resolve back to the original target") {
     forAll(RelativePath, RelativePath) { (baseSuffix, targetSuffix) =>
-      val base = Paths.get("/workspace", baseSuffix).normalize().toString
-      val target = Paths.get("/workspace", targetSuffix).normalize().toString
+      val base     = Paths.get("/workspace", baseSuffix).normalize().toString
+      val target   = Paths.get("/workspace", targetSuffix).normalize().toString
       val relative = PathUtil.relative(base, target)
 
       assertEquals(Paths.get(base).resolve(relative).normalize().toString, target)

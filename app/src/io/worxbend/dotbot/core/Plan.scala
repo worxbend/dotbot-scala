@@ -1,10 +1,10 @@
 package io.worxbend.dotbot.core
 
 final case class Operation(
-  directive:   Directive,
-  target:      String = "",
-  detail:      String = "",
-  detailStyle: DetailStyle = DetailStyle.Parenthesized,
+    directive: Directive,
+    target: String = "",
+    detail: String = "",
+    detailStyle: DetailStyle = DetailStyle.Parenthesized,
 )
 
 enum DetailStyle:

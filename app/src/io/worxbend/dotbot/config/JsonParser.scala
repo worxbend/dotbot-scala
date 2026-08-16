@@ -25,33 +25,33 @@ private[config] object JsonParser:
     else
       try Right(readFromString(data)(using JsonConfigValueCodec))
       catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
-  
+
   private object JsonConfigValueCodec extends JsonValueCodec[ConfigValue]:
     def nullValue: ConfigValue = ConfigValue.NullValue
-  
+
     def encodeValue(value: ConfigValue, out: JsonWriter): Unit =
       // Configuration is only ever read, never written back out.
       throw UnsupportedOperationException("dotbot does not write JSON configuration")
-  
+
     def decodeValue(in: JsonReader, default: ConfigValue): ConfigValue =
       val token = in.nextToken()
       in.rollbackToken()
       token match
-        case '"'       => ConfigValue.StringValue(in.readString(null))
-        case 't' | 'f' => ConfigValue.BoolValue(in.readBoolean())
-        case 'n'       => readNull(in)
-        case '['       => readArray(in, default)
-        case '{'       => readObject(in, default)
+        case '"'                                                     => ConfigValue.StringValue(in.readString(null))
+        case 't' | 'f'                                               => ConfigValue.BoolValue(in.readBoolean())
+        case 'n'                                                     => readNull(in)
+        case '['                                                     => readArray(in, default)
+        case '{'                                                     => readObject(in, default)
         case digit if digit == '-' || (digit >= '0' && digit <= '9') =>
           ConfigValue.NumberValue(in.readBigDecimal(null))
-        case _ => in.decodeError("expected a JSON value")
-  
+        case _                                                       => in.decodeError("expected a JSON value")
+
     private def readNull(in: JsonReader): ConfigValue =
       // `readNullOrError` reads the rest of the literal and so needs the token it follows to be
       // the current one; the dispatch above rolled its lookahead back.
       in.nextToken(): Unit
       in.readNullOrError(ConfigValue.NullValue, "expected null")
-  
+
     private def readArray(in: JsonReader, default: ConfigValue): ConfigValue =
       if !in.isNextToken('[') then in.decodeError("expected '['")
       else if in.isNextToken(']') then ConfigValue.ArrayValue(Vector.empty)
@@ -64,7 +64,7 @@ private[config] object JsonParser:
         do ()
         if in.isCurrentToken(']') then ConfigValue.ArrayValue(items.result())
         else in.arrayEndOrCommaError()
-  
+
     private def readObject(in: JsonReader, default: ConfigValue): ConfigValue =
       if !in.isNextToken('{') then in.decodeError("expected '{'")
       else if in.isNextToken('}') then ConfigValue.ObjectValue(Vector.empty)

@@ -20,9 +20,9 @@ import scala.collection.mutable.ArrayBuffer
 
 class InterpreterSuite extends munit.FunSuite:
   test("interpreter uses one keyed handler for plan and dispatch") {
-    val handler = CountingHandler()
+    val handler     = CountingHandler()
     val interpreter = Interpreter(runtimeContext(), Map(handler.directive -> handler))
-    val tasks = Vector(Task(Vector(Action(Directive.Create, ConfigValue.NullValue))))
+    val tasks       = Vector(Task(Vector(Action(Directive.Create, ConfigValue.NullValue))))
 
     assertEquals(interpreter.plan(tasks).map(_.operations), Right(Vector(Operation(Directive.Create, "planned"))))
     assertEquals(interpreter.dispatch(tasks), Right(Outcome.Ok))
@@ -31,23 +31,25 @@ class InterpreterSuite extends munit.FunSuite:
   }
 
   test("interpreter reports unknown directives through the keyed registry") {
-    val output = ByteArrayOutputStream()
+    val output      = ByteArrayOutputStream()
     val interpreter = Interpreter(runtimeContext(output), Map.empty)
-    val tasks = Vector(Task(Vector(Action(Directive.Unknown("unknown"), ConfigValue.NullValue))))
+    val tasks       = Vector(Task(Vector(Action(Directive.Unknown("unknown"), ConfigValue.NullValue))))
 
     assertEquals(interpreter.dispatch(tasks), Right(Outcome.Failed))
     assertEquals(output.toString, "error Action unknown not handled\n")
   }
 
   test("exitOnFailure stops dispatch after the first failed directive") {
-    val output = ByteArrayOutputStream()
-    val create = CountingHandler(Directive.Create, result = Outcome.Failed)
-    val clean = CountingHandler(Directive.Clean)
+    val output      = ByteArrayOutputStream()
+    val create      = CountingHandler(Directive.Create, result = Outcome.Failed)
+    val clean       = CountingHandler(Directive.Clean)
     val interpreter = Interpreter(
       runtimeContext(output, CoreOptions(exitOnFailure = true)),
       Map(create.directive -> create, clean.directive -> clean),
     )
-    val tasks = Vector(Task(Vector(Action(Directive.Create, ConfigValue.NullValue), Action(Directive.Clean, ConfigValue.NullValue))))
+    val tasks       = Vector(
+      Task(Vector(Action(Directive.Create, ConfigValue.NullValue), Action(Directive.Clean, ConfigValue.NullValue))),
+    )
 
     assertEquals(interpreter.dispatch(tasks), Right(Outcome.Failed))
     assertEquals(create.executions, 1)
@@ -56,23 +58,25 @@ class InterpreterSuite extends munit.FunSuite:
   }
 
   test("only and except filters skip directives before execution") {
-    val onlyOutput = ByteArrayOutputStream()
-    val onlyCreate = CountingHandler(Directive.Create)
-    val onlyClean = CountingHandler(Directive.Clean)
+    val onlyOutput      = ByteArrayOutputStream()
+    val onlyCreate      = CountingHandler(Directive.Create)
+    val onlyClean       = CountingHandler(Directive.Clean)
     val onlyInterpreter = Interpreter(
       runtimeContext(onlyOutput, CoreOptions(only = Set(Directive.Create))),
       Map(onlyCreate.directive -> onlyCreate, onlyClean.directive -> onlyClean),
     )
-    val tasks = Vector(Task(Vector(Action(Directive.Create, ConfigValue.NullValue), Action(Directive.Clean, ConfigValue.NullValue))))
+    val tasks           = Vector(
+      Task(Vector(Action(Directive.Create, ConfigValue.NullValue), Action(Directive.Clean, ConfigValue.NullValue))),
+    )
 
     assertEquals(onlyInterpreter.dispatch(tasks), Right(Outcome.Ok))
     assertEquals(onlyCreate.executions, 1)
     assertEquals(onlyClean.executions, 0)
     assertEquals(onlyOutput.toString, "info  Skipping action clean\n")
 
-    val exceptOutput = ByteArrayOutputStream()
-    val exceptCreate = CountingHandler(Directive.Create)
-    val exceptClean = CountingHandler(Directive.Clean)
+    val exceptOutput      = ByteArrayOutputStream()
+    val exceptCreate      = CountingHandler(Directive.Create)
+    val exceptClean       = CountingHandler(Directive.Clean)
     val exceptInterpreter = Interpreter(
       runtimeContext(exceptOutput, CoreOptions(skip = Set(Directive.Create))),
       Map(exceptCreate.directive -> exceptCreate, exceptClean.directive -> exceptClean),
@@ -85,9 +89,9 @@ class InterpreterSuite extends munit.FunSuite:
   }
 
   test("defaults apply only to subsequent actions while dispatching") {
-    val handler = DefaultsCapturingHandler()
+    val handler     = DefaultsCapturingHandler()
     val interpreter = Interpreter(runtimeContext(), Map(handler.directive -> handler))
-    val tasks = Vector(
+    val tasks       = Vector(
       Task(
         Vector(
           Action(Directive.Defaults, createDefaults("700")),
@@ -99,12 +103,15 @@ class InterpreterSuite extends munit.FunSuite:
     )
 
     assertEquals(interpreter.dispatch(tasks), Right(Outcome.Ok))
-    assertEquals(handler.observedCreateModes, Vector(Some(ConfigValue.StringValue("700")), Some(ConfigValue.StringValue("755"))))
+    assertEquals(
+      handler.observedCreateModes,
+      Vector(Some(ConfigValue.StringValue("700")), Some(ConfigValue.StringValue("755"))),
+    )
   }
 
   private def runtimeContext(
-    output:  ByteArrayOutputStream = ByteArrayOutputStream(),
-    options: CoreOptions = CoreOptions(),
+      output: ByteArrayOutputStream = ByteArrayOutputStream(),
+      options: CoreOptions = CoreOptions(),
   ): RuntimeContext =
     TestRuntime(options = options, output = output).ctx
 
@@ -117,13 +124,13 @@ class InterpreterSuite extends munit.FunSuite:
       ),
     )
 
-  private final class CountingHandler(
-    val directive: Directive = Directive.Create,
-    result:        Outcome = Outcome.Ok,
+  final private class CountingHandler(
+      val directive: Directive = Directive.Create,
+      result: Outcome = Outcome.Ok,
   ) extends DirectiveHandler:
     type Spec = CreateSpec
 
-    private val plans0 = AtomicInteger(0)
+    private val plans0      = AtomicInteger(0)
     private val executions0 = AtomicInteger(0)
 
     def plans: Int =
@@ -143,7 +150,7 @@ class InterpreterSuite extends munit.FunSuite:
       executions0.incrementAndGet()
       result
 
-  private final class DefaultsCapturingHandler extends DirectiveHandler:
+  final private class DefaultsCapturingHandler extends DirectiveHandler:
     type Spec = CreateSpec
 
     val directive: Directive = Directive.Create

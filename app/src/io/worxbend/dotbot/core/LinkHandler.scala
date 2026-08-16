@@ -21,31 +21,31 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
       case LinkSpec(Some(linkType), _) =>
         ctx.log.warning(s"The default link type is not recognized: '${linkType.render}'")
         Outcome.Failed
-      case LinkSpec(None, _) => super.execute(ctx, spec)
+      case LinkSpec(None, _)           => super.execute(ctx, spec)
 
-  override protected def entries(spec: LinkSpec): Vector[LinkEntry] =
+  protected override def entries(spec: LinkSpec): Vector[LinkEntry] =
     spec.entries
 
-  override protected def executeEntry(ctx: RuntimeContext, entry: LinkEntry): Outcome =
+  protected override def executeEntry(ctx: RuntimeContext, entry: LinkEntry): Outcome =
     entry match
       case LinkEntry.Link(rawLinkName, target, options) => handleOneLink(ctx, rawLinkName, target, options)
-      case LinkEntry.InvalidLinkType(linkType) =>
+      case LinkEntry.InvalidLinkType(linkType)          =>
         ctx.log.warning(s"The link type is not recognized: '${linkType.render}'")
         Outcome.Failed
 
-  override protected def allSuccessfulMessage: String =
+  protected override def allSuccessfulMessage: String =
     "All links have been set up"
 
-  override protected def someFailedMessage: String =
+  protected override def someFailedMessage: String =
     "Some links were not successfully set up"
 
   private def handleOneLink(
-    ctx:         RuntimeContext,
-    rawLinkName: String,
-    rawPath:     String,
-    options:     LinkOptions,
+      ctx: RuntimeContext,
+      rawLinkName: String,
+      rawPath: String,
+      options: LinkOptions,
   ): Outcome =
-    val linkName = ctx.paths.path(rawLinkName)
+    val linkName   = ctx.paths.path(rawLinkName)
     val sourcePath = PathUtil.clean(ctx.paths.path(rawPath))
     if !conditionAllowsLink(ctx, options) then
       ctx.log.info(s"Skipping $linkName")
@@ -67,27 +67,29 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
       ctx.log.action(s"Would check condition [${options.ifCommand}]")
       true
     else
-      ctx.shell.run(options.ifCommand, ShellOptions(cwd = ctx.baseDirectory, timeout = ctx.options.shellTimeout)).successful
+      ctx.shell
+        .run(options.ifCommand, ShellOptions(cwd = ctx.baseDirectory, timeout = ctx.options.shellTimeout))
+        .successful
 
   private def processLinkSource(
-    ctx:        RuntimeContext,
-    sourcePath: String,
-    linkName:   String,
-    options:    LinkOptions,
+      ctx: RuntimeContext,
+      sourcePath: String,
+      linkName: String,
+      options: LinkOptions,
   ): Outcome =
     if options.glob && Glob.hasGlobChars(sourcePath) then processGlobbedLinks(ctx, sourcePath, linkName, options)
     else processOneLink(ctx, sourcePath, linkName, options, globbed = false)
 
   private def processGlobbedLinks(
-    ctx:        RuntimeContext,
-    sourcePath: String,
-    linkName:   String,
-    options:    LinkOptions,
+      ctx: RuntimeContext,
+      sourcePath: String,
+      linkName: String,
+      options: LinkOptions,
   ): Outcome =
-    val pattern = ctx.paths.absFromExpanded(ctx.baseDirectory, sourcePath)
+    val pattern  = ctx.paths.absFromExpanded(ctx.baseDirectory, sourcePath)
     val excludes = options.exclude.map(item => ctx.paths.absFrom(ctx.baseDirectory, item))
     Glob.createGlobResults(ctx.fs, pattern, excludes) match
-      case Left(error) =>
+      case Left(error)    =>
         ctx.log.warning(s"Unable to expand glob '$sourcePath': ${error.render}")
         Outcome.Failed
       case Right(matches) =>
@@ -97,24 +99,24 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
         }
 
   private def processGlobMatch(
-    ctx:      RuntimeContext,
-    pattern:  String,
-    fullItem: String,
-    linkName: String,
-    options:  LinkOptions,
+      ctx: RuntimeContext,
+      pattern: String,
+      fullItem: String,
+      linkName: String,
+      options: LinkOptions,
   ): Outcome =
-    val itemName =
+    val itemName     =
       val raw = Glob.globLinkItem(pattern, fullItem)
       if options.prefix.nonEmpty then options.prefix + raw else raw
     val globLinkName = PathUtil.join(linkName, itemName)
     processOneLink(ctx, fullItem, globLinkName, options, globbed = true)
 
   private def processOneLink(
-    ctx:      RuntimeContext,
-    target:   String,
-    linkName: String,
-    options:  LinkOptions,
-    globbed:  Boolean,
+      ctx: RuntimeContext,
+      target: String,
+      linkName: String,
+      options: LinkOptions,
+      globbed: Boolean,
   ): Outcome =
     val link = resolveLink(ctx, target, linkName, options)
     // The missing-target check comes before `createParent`, which really does create directories.
@@ -128,12 +130,13 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
       val parentOutcome =
         if options.create then createParent(ctx, link.linkPath)
         else Outcome.Ok
-      val backupResult =
+      val backupResult  =
         if options.backup then backup(ctx, link)
         else BackupResult.NotNeeded
 
       val removeResult =
-        if (options.force || options.relink) && backupResult != BackupResult.BackedUp then deleteLink(ctx, link, options)
+        if (options.force || options.relink) && backupResult != BackupResult.BackedUp then
+          deleteLink(ctx, link, options)
         else RemoveResult.Kept
 
       val linkPathAvailable = backupResult.makesLinkPathAvailable || removeResult.makesLinkPathAvailable
@@ -142,26 +145,30 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
         .combine(backupResult.outcome)
         .combine(removeResult.outcome)
 
-  private final case class LinkResolution(
-    target:         String,
-    linkName:       String,
-    linkPath:       String,
-    absoluteTarget: String,
-    targetPath:     String,
+  final private case class LinkResolution(
+      target: String,
+      linkName: String,
+      linkPath: String,
+      absoluteTarget: String,
+      targetPath: String,
   ):
     def cleanLinkName: String = PathUtil.clean(linkName)
 
   private def resolveLink(ctx: RuntimeContext, target: String, linkName: String, options: LinkOptions): LinkResolution =
-    val base = baseDir(ctx, options.canonicalize)
+    val base           = baseDir(ctx, options.canonicalize)
     val absoluteTarget = ctx.paths.absFromExpanded(base, target)
-    val linkPath = ctx.paths.absFromExpanded(ctx.baseDirectory, linkName)
-    val targetPath =
+    val linkPath       = ctx.paths.absFromExpanded(ctx.baseDirectory, linkName)
+    val targetPath     =
       if options.relative then PathUtil.relative(PathUtil.dirname(linkPath), absoluteTarget)
       else absoluteTarget
     LinkResolution(target, linkName, linkPath, absoluteTarget, targetPath)
 
   private def baseDir(ctx: RuntimeContext, canonical: Boolean): String =
-    if !canonical then ctx.baseDirectory else ctx.withFilesystem(ctx.fs.realpath(ctx.baseDirectory), _ => "Failed to resolve base directory").getOrElse(ctx.baseDirectory)
+    if !canonical then ctx.baseDirectory
+    else
+      ctx
+        .withFilesystem(ctx.fs.realpath(ctx.baseDirectory), _ => "Failed to resolve base directory")
+        .getOrElse(ctx.baseDirectory)
 
   private def formatStrings(values: Vector[String]): String =
     values.map(value => "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"").mkString("Vector(", ", ", ")")
@@ -172,11 +179,11 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
     else if ctx.options.dryRun then
       ctx.log.action(s"Would create directory $parent")
       Outcome.Ok
+    else if ctx.withFilesystem(ctx.fs.mkdirAll(parent), _ => s"Failed to create directory $parent").isEmpty then
+      Outcome.Failed
     else
-      if ctx.withFilesystem(ctx.fs.mkdirAll(parent), _ => s"Failed to create directory $parent").isEmpty then Outcome.Failed
-      else
-        ctx.log.action(s"Creating directory $parent")
-        Outcome.Ok
+      ctx.log.action(s"Creating directory $parent")
+      Outcome.Ok
 
   private enum BackupResult:
     def outcome: Outcome =
@@ -207,39 +214,43 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
 
   private def backup(ctx: RuntimeContext, link: LinkResolution): BackupResult =
     if ctx.fs.exists(link.linkPath) && !ctx.fs.isSymlink(link.linkPath) then
-      val timestamp = BackupTimestampFormatter.format(ctx.clock.instant().atZone(ctx.clock.getZone))
+      val timestamp  = BackupTimestampFormatter.format(ctx.clock.instant().atZone(ctx.clock.getZone))
       val backupName = s"${link.linkName}.dotbot-backup.$timestamp"
       val backupPath = ctx.paths.absFromExpanded(ctx.baseDirectory, backupName)
       if ctx.options.dryRun then
         ctx.log.action(s"Would backup ${link.linkName} to $backupName")
         BackupResult.BackedUp
+      else if ctx
+          .withFilesystem(
+            ctx.fs.rename(link.linkPath, backupPath),
+            _ => s"Failed to backup file ${link.linkName} to $backupName",
+          )
+          .isEmpty
+      then BackupResult.Failed
       else
-        if ctx.withFilesystem(ctx.fs.rename(link.linkPath, backupPath), _ => s"Failed to backup file ${link.linkName} to $backupName").isEmpty then
-          BackupResult.Failed
-        else
-          ctx.log.action(s"Backed up file ${link.linkName} to $backupName")
-          BackupResult.BackedUp
+        ctx.log.action(s"Backed up file ${link.linkName} to $backupName")
+        BackupResult.BackedUp
     else BackupResult.NotNeeded
 
   private def deleteLink(ctx: RuntimeContext, link: LinkResolution, options: LinkOptions): RemoveResult =
     sameFileConflict(ctx, link).getOrElse {
       shouldRemoveLink(ctx, link) match
-        case Left(result)                  => result
-        case Right(RemoveDecision.Keep)    => RemoveResult.Kept
+        case Left(result)                                       => result
+        case Right(RemoveDecision.Keep)                         => RemoveResult.Kept
         case Right(RemoveDecision.Remove) if ctx.options.dryRun =>
           ctx.log.action(s"Would remove ${link.linkName}")
           RemoveResult.Removed
-        case Right(RemoveDecision.Remove)  => removeLink(ctx, link, options)
+        case Right(RemoveDecision.Remove)                       => removeLink(ctx, link, options)
     }
 
   private def sameFileConflict(ctx: RuntimeContext, link: LinkResolution): Option[RemoveResult] =
     if ctx.fs.exists(link.linkPath) && !ctx.fs.isSymlink(link.linkPath) then
       ctx.withFilesystem(ctx.fs.sameFile(link.linkPath, link.absoluteTarget), _ => "Failed to compare file links") match
-        case Some(true) =>
+        case Some(true)  =>
           ctx.log.warning(s"${link.linkName} appears to be the same file as ${link.absoluteTarget}.")
           Some(RemoveResult.FailedBeforeRemove)
         case Some(false) => None
-        case None       => None
+        case None        => None
     else None
 
   private def shouldRemoveLink(ctx: RuntimeContext, link: LinkResolution): Either[RemoveResult, RemoveDecision] =
@@ -274,14 +285,17 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
         RemoveResult.Removed
 
   private def createLink(
-    ctx:           RuntimeContext,
-    link:          LinkResolution,
-    options:       LinkOptions,
-    ignoreMissing: Boolean,
-    assumeLinkPathAvailable: Boolean,
+      ctx: RuntimeContext,
+      link: LinkResolution,
+      options: LinkOptions,
+      ignoreMissing: Boolean,
+      assumeLinkPathAvailable: Boolean,
   ): Outcome =
     val linkExists = ctx.fs.lexists(link.linkPath)
-    if (!linkExists || (ctx.options.dryRun && assumeLinkPathAvailable)) && (ignoreMissing || ctx.fs.exists(link.absoluteTarget)) then
+    if (!linkExists || (ctx.options.dryRun && assumeLinkPathAvailable)) && (ignoreMissing || ctx.fs.exists(
+        link.absoluteTarget,
+      ))
+    then
       if ctx.options.dryRun then
         ctx.log.action(s"Would create ${options.linkType.label} ${link.cleanLinkName} -> ${link.targetPath}")
         Outcome.Ok
@@ -289,26 +303,33 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
         val result =
           if options.linkType == LinkType.Symlink then ctx.fs.symlink(link.targetPath, link.linkPath)
           else ctx.fs.hardlink(link.absoluteTarget, link.linkPath)
-        if ctx.withFilesystem(result, _ => s"Linking failed ${link.cleanLinkName} -> ${link.targetPath}").isEmpty then Outcome.Failed
+        if ctx.withFilesystem(result, _ => s"Linking failed ${link.cleanLinkName} -> ${link.targetPath}").isEmpty then
+          Outcome.Failed
         else
-            ctx.log.action(s"Creating ${options.linkType.label} ${link.cleanLinkName} -> ${link.targetPath}")
-            Outcome.Ok
+          ctx.log.action(s"Creating ${options.linkType.label} ${link.cleanLinkName} -> ${link.targetPath}")
+          Outcome.Ok
     else if ctx.fs.isSymlink(link.linkPath) then
       if options.linkType == LinkType.Symlink then
         ctx.withFilesystem(ctx.fs.readlink(link.linkPath), _ => s"Failed to inspect link ${link.cleanLinkName}") match
-          case None =>
+          case None                                        =>
             Outcome.Failed
           case Some(current) if current == link.targetPath =>
             ctx.log.info(s"Link exists ${link.cleanLinkName} -> ${link.targetPath}")
             Outcome.Ok
-          case Some(current) =>
+          case Some(current)                               =>
             val term = if !ctx.fs.exists(link.linkPath) then "Invalid" else "Incorrect"
             ctx.log.warning(s"$term link ${link.cleanLinkName} -> $current")
             Outcome.Failed
       else
         ctx.log.warning(s"${link.cleanLinkName} already exists but is a symbolic link, not a hard link")
         Outcome.Failed
-    else if options.linkType == LinkType.Hardlink && ctx.withFilesystem(ctx.fs.sameFile(link.linkPath, link.absoluteTarget), _ => s"Failed to compare file links for ${link.cleanLinkName}").contains(true) then
+    else if options.linkType == LinkType.Hardlink && ctx
+        .withFilesystem(
+          ctx.fs.sameFile(link.linkPath, link.absoluteTarget),
+          _ => s"Failed to compare file links for ${link.cleanLinkName}",
+        )
+        .contains(true)
+    then
       ctx.log.info(s"Link exists ${link.cleanLinkName} -> ${link.targetPath}")
       Outcome.Ok
     else

@@ -14,8 +14,8 @@ class OptionSchemaSuite extends munit.FunSuite:
 
   test("accepts a well-formed option map") {
     val values = Map(
-      "path" -> ConfigValue.StringValue("vimrc"),
-      "force" -> ConfigValue.BoolValue(true),
+      "path"    -> ConfigValue.StringValue("vimrc"),
+      "force"   -> ConfigValue.BoolValue(true),
       "exclude" -> ConfigValue.ArrayValue(Vector(ConfigValue.StringValue("a"), ConfigValue.StringValue("b"))),
     )
 
@@ -31,7 +31,7 @@ class OptionSchemaSuite extends munit.FunSuite:
   }
 
   test("rejects an unknown option and lists the ones that exist") {
-    val values = Map("relnk" -> ConfigValue.BoolValue(true))
+    val values  = Map("relnk" -> ConfigValue.BoolValue(true))
     val message = render(OptionSchema.link.validate(values, entry))
 
     assert(message.exists(_.startsWith("""unknown link option "relnk" for ~/.vimrc, expected one of: """)), message)
@@ -105,8 +105,20 @@ class OptionSchemaSuite extends munit.FunSuite:
     // If someone adds an option to LinkOptions and forgets the schema, that option becomes
     // "unknown" and every config using it starts failing validation. This is the reminder.
     val expected = Set(
-      "path", "type", "exclude", "prefix", "if", "relative", "canonicalize", "canonicalize-path",
-      "force", "relink", "create", "glob", "backup", "ignore-missing",
+      "path",
+      "type",
+      "exclude",
+      "prefix",
+      "if",
+      "relative",
+      "canonicalize",
+      "canonicalize-path",
+      "force",
+      "relink",
+      "create",
+      "glob",
+      "backup",
+      "ignore-missing",
     )
 
     assertEquals(OptionSchema.link.fields.keySet, expected)

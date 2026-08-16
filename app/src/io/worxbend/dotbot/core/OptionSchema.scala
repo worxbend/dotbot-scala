@@ -4,11 +4,11 @@ package io.worxbend.dotbot.core
  * The kind of value a directive option accepts.
  */
 enum OptionType(val description: String):
-  case Bool extends OptionType("a boolean")
-  case Str extends OptionType("a string")
-  case StrList extends OptionType("a list of strings")
+  case Bool      extends OptionType("a boolean")
+  case Str       extends OptionType("a string")
+  case StrList   extends OptionType("a list of strings")
   case StrOrNull extends OptionType("a string")
-  case Mode extends OptionType("an octal string or number")
+  case Mode      extends OptionType("an octal string or number")
 
   def accepts(value: ConfigValue): Boolean =
     this match
@@ -16,7 +16,7 @@ enum OptionType(val description: String):
       case Str       => value.asString.isDefined
       case StrList   => value.isStringList
       case StrOrNull => value == ConfigValue.NullValue || value.asString.isDefined
-      case Mode =>
+      case Mode      =>
         value match
           case ConfigValue.StringValue(item) => FileMode.fromOctal(item).isDefined
           case ConfigValue.NumberValue(item) => FileMode.fromNumber(item).isDefined
@@ -63,9 +63,9 @@ final case class OptionSchema(fields: Map[String, OptionType]):
       .map(_ => ())
 
   private def validateField(
-    key:     String,
-    value:   ConfigValue,
-    context: OptionContext,
+      key: String,
+      value: ConfigValue,
+      context: OptionContext,
   ): Either[DotbotError, Unit] =
     fields.get(key) match
       case None                                          => Left(DotbotError.Decode(context.unknown(key, knownKeys)))
@@ -79,27 +79,27 @@ object OptionSchema:
   /** Options accepted by a `link` entry, and by the `link` section of `defaults`. */
   val link: OptionSchema = OptionSchema(
     Map(
-      "path" -> OptionType.StrOrNull,
-      "type" -> OptionType.Str,
-      "exclude" -> OptionType.StrList,
-      "prefix" -> OptionType.Str,
-      "if" -> OptionType.Str,
-      "relative" -> OptionType.Bool,
-      "canonicalize" -> OptionType.Bool,
+      "path"              -> OptionType.StrOrNull,
+      "type"              -> OptionType.Str,
+      "exclude"           -> OptionType.StrList,
+      "prefix"            -> OptionType.Str,
+      "if"                -> OptionType.Str,
+      "relative"          -> OptionType.Bool,
+      "canonicalize"      -> OptionType.Bool,
       "canonicalize-path" -> OptionType.Bool,
-      "force" -> OptionType.Bool,
-      "relink" -> OptionType.Bool,
-      "create" -> OptionType.Bool,
-      "glob" -> OptionType.Bool,
-      "backup" -> OptionType.Bool,
-      "ignore-missing" -> OptionType.Bool,
+      "force"             -> OptionType.Bool,
+      "relink"            -> OptionType.Bool,
+      "create"            -> OptionType.Bool,
+      "glob"              -> OptionType.Bool,
+      "backup"            -> OptionType.Bool,
+      "ignore-missing"    -> OptionType.Bool,
     ),
   )
 
   /** Options accepted by a `clean` entry, and by the `clean` section of `defaults`. */
   val clean: OptionSchema = OptionSchema(
     Map(
-      "force" -> OptionType.Bool,
+      "force"     -> OptionType.Bool,
       "recursive" -> OptionType.Bool,
     ),
   )
@@ -110,12 +110,12 @@ object OptionSchema:
   /** Options accepted by a `shell` entry written as a map, and by the `shell` section of `defaults`. */
   val shell: OptionSchema = OptionSchema(
     Map(
-      "command" -> OptionType.Str,
+      "command"     -> OptionType.Str,
       "description" -> OptionType.Str,
-      "quiet" -> OptionType.Bool,
-      "stdin" -> OptionType.Bool,
-      "stdout" -> OptionType.Bool,
-      "stderr" -> OptionType.Bool,
+      "quiet"       -> OptionType.Bool,
+      "stdin"       -> OptionType.Bool,
+      "stdout"      -> OptionType.Bool,
+      "stderr"      -> OptionType.Bool,
     ),
   )
 

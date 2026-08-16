@@ -9,11 +9,11 @@ import java.io.PrintStream
  * Logging severity levels used by the CLI and core runtime.
  */
 enum Level(val rank: Int):
-  case Debug extends Level(0)
-  case Info extends Level(1)
-  case Action extends Level(2)
+  case Debug   extends Level(0)
+  case Info    extends Level(1)
+  case Action  extends Level(2)
   case Warning extends Level(3)
-  case Error extends Level(4)
+  case Error   extends Level(4)
 
 /**
  * What the destination terminal can render.
@@ -38,7 +38,7 @@ object TerminalCapabilities:
    */
   def from(env: Environment, consoleAttached: Boolean): TerminalCapabilities =
     val dumbTerminal = env.variable("TERM").exists(_.equalsIgnoreCase("dumb"))
-    val renderable = consoleAttached && !dumbTerminal
+    val renderable   = consoleAttached && !dumbTerminal
     TerminalCapabilities(
       color = renderable && env.variable("NO_COLOR").isEmpty,
       symbols = renderable && env.variable("NO_EMOJI").isEmpty,
@@ -58,11 +58,11 @@ object TerminalCapabilities:
  * @param stylishSymbols include icon badges for levels when enabled.
  */
 final class Logger(
-  out: PrintStream,
-  err: PrintStream,
-  minimum: Level,
-  color: Boolean,
-  private[logging] val stylishSymbols: Boolean = false,
+    out: PrintStream,
+    err: PrintStream,
+    minimum: Level,
+    color: Boolean,
+    private[logging] val stylishSymbols: Boolean = false,
 ) extends Log:
 
   def debug(message: String): Unit = log(Level.Debug, message)
@@ -77,10 +77,10 @@ final class Logger(
 
   private def log(level: Level, message: String): Unit =
     if level.rank >= minimum.rank then
-      val name = label(level)
+      val name    = label(level)
       // The badge is styled, but the padding that aligns messages into a column is not: keeping
       // spaces outside the ANSI reset makes the plain and colored forms line up identically.
-      val badge = s"${style(level)}${symbol(level)}$name${reset}"
+      val badge   = s"${style(level)}${symbol(level)}$name${reset}"
       val padding = " " * (Logger.LabelWidth - name.length)
       streamFor(level).println(s"$badge$padding${messageStyle(level)}$message$reset")
 

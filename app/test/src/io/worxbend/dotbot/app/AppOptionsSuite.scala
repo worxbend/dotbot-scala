@@ -9,7 +9,7 @@ import io.worxbend.dotbot.logging.TerminalCapabilities
  */
 class AppOptionsSuite extends munit.FunSuite:
   private val terminal = TerminalCapabilities(color = true, symbols = true)
-  private val pipe = TerminalCapabilities.plain
+  private val pipe     = TerminalCapabilities.plain
 
   test("verbosity selects the minimum level") {
     assertEquals(DotbotApp.minimumLevel(AppOptions()), Level.Action)

@@ -173,7 +173,7 @@ class ConfigOrderSuite extends munit.FunSuite:
         assertEquals(path, "install.conf")
         assertEquals(line, 2)
         assertEquals(directives, Vector("create", "defaults"))
-      case other => fail(s"expected an ambiguous-order error, got $other")
+      case other                                                        => fail(s"expected an ambiguous-order error, got $other")
   }
 
   test("the ambiguity error tells the user how to fix it") {

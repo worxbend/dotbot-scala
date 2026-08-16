@@ -11,7 +11,7 @@ object EitherUtil:
       if !iterator.hasNext then Right(values.reverse.toVector)
       else
         f(iterator.next()) match
-          case Left(error) => Left(error)
+          case Left(error)  => Left(error)
           case Right(value) => loop(value :: values)
 
     loop(Nil)

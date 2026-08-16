@@ -7,8 +7,8 @@ import io.worxbend.dotbot.core.DotbotError
 
 class ConfigReaderSuite extends munit.FunSuite:
   test("reads YAML, HOCON, JSON, and TOML examples with directive order preserved") {
-    val reader = ConfigReader()
-    val root = os.temp.dir(prefix = "dotbot-scala-config-")
+    val reader   = ConfigReader()
+    val root     = os.temp.dir(prefix = "dotbot-scala-config-")
     val examples = Vector(
       "install.conf.yaml" ->
         """- defaults:
@@ -23,7 +23,7 @@ class ConfigReaderSuite extends munit.FunSuite:
           |- shell:
           |    - [echo ok, Echo]
           |""".stripMargin,
-      "install.json" ->
+      "install.json"      ->
         """[
           |  {"defaults": {"link": {"create": true}}},
           |  {"clean": ["~"]},
@@ -32,7 +32,7 @@ class ConfigReaderSuite extends munit.FunSuite:
           |  {"shell": [["echo ok", "Echo"]]}
           |]
           |""".stripMargin,
-      "install.conf" ->
+      "install.conf"      ->
         """tasks = [
           |  { defaults = { link = { create = true } } }
           |  { clean = ["~"] }
@@ -41,7 +41,7 @@ class ConfigReaderSuite extends munit.FunSuite:
           |  { shell = [["echo ok", "Echo"]] }
           |]
           |""".stripMargin,
-      "install.toml" ->
+      "install.toml"      ->
         """tasks = [
           |  { defaults = { link = { create = true } } },
           |  { clean = ["~"] },
@@ -53,11 +53,14 @@ class ConfigReaderSuite extends munit.FunSuite:
     )
 
     for (file, content) <- examples do
-      val path = root / file
+      val path  = root / file
       os.write(path, content)
       val tasks = reader.read(Vector(path.toString)).fold(error => fail(error.render), identity)
 
-      assertEquals(tasks.map(_.actions.map(_.directive.label)), Vector(Vector("defaults"), Vector("clean"), Vector("create"), Vector("link"), Vector("shell")))
+      assertEquals(
+        tasks.map(_.actions.map(_.directive.label)),
+        Vector(Vector("defaults"), Vector("clean"), Vector("create"), Vector("link"), Vector("shell")),
+      )
   }
 
   test("reads HOCON root task arrays through Lightbend Config") {
@@ -73,7 +76,7 @@ class ConfigReaderSuite extends munit.FunSuite:
     )
 
     val tasks = ConfigReader().read(Vector(path.toString)).fold(error => fail(error.render), identity)
-    val mode = tasks.head.actions.head.data
+    val mode  = tasks.head.actions.head.data
       .field("create")
       .flatMap(_.field("mode"))
 
@@ -81,9 +84,11 @@ class ConfigReaderSuite extends munit.FunSuite:
   }
 
   test("accepts YAML and HOCON extension aliases") {
-    val ymlTasks = ConfigParsers.parseTasks("install.yml", "yml", "- create: [generated]\n")
+    val ymlTasks   = ConfigParsers
+      .parseTasks("install.yml", "yml", "- create: [generated]\n")
       .fold(error => fail(error.render), identity)
-    val hoconTasks = ConfigParsers.parseTasks("install.hocon", "hocon", """tasks = [{ create = ["generated"] }]""")
+    val hoconTasks = ConfigParsers
+      .parseTasks("install.hocon", "hocon", """tasks = [{ create = ["generated"] }]""")
       .fold(error => fail(error.render), identity)
 
     assertEquals(ymlTasks.map(_.actions.map(_.directive.label)), Vector(Vector("create")))
@@ -91,29 +96,33 @@ class ConfigReaderSuite extends munit.FunSuite:
   }
 
   test("reads JSON root task objects through jsoniter") {
-    val tasks = ConfigParsers.parseTasks(
-      "install.json",
-      "json",
-      """{
+    val tasks = ConfigParsers
+      .parseTasks(
+        "install.json",
+        "json",
+        """{
         |  "tasks": [
         |    { "create": ["generated"] }
         |  ]
         |}
         |""".stripMargin,
-    ).fold(error => fail(error.render), identity)
+      )
+      .fold(error => fail(error.render), identity)
 
     assertEquals(tasks.map(_.actions.map(_.directive.label)), Vector(Vector("create")))
   }
 
   test("reads HOCON task alias through Lightbend Config") {
-    val tasks = ConfigParsers.parseTasks(
-      "install.conf",
-      "conf",
-      """task = [
+    val tasks = ConfigParsers
+      .parseTasks(
+        "install.conf",
+        "conf",
+        """task = [
         |  { shell = ["echo ok"] }
         |]
         |""".stripMargin,
-    ).fold(error => fail(error.render), identity)
+      )
+      .fold(error => fail(error.render), identity)
 
     assertEquals(tasks.map(_.actions.map(_.directive.label)), Vector(Vector("shell")))
   }
@@ -150,10 +159,10 @@ class ConfigReaderSuite extends munit.FunSuite:
       Right(
         ConfigValue.ObjectValue(
           Vector(
-            "mode" -> ConfigValue.NumberValue(BigDecimal(493)),
+            "mode"    -> ConfigValue.NumberValue(BigDecimal(493)),
             "enabled" -> ConfigValue.BoolValue(true),
-            "empty" -> ConfigValue.NullValue,
-            "name" -> ConfigValue.StringValue("dotbot"),
+            "empty"   -> ConfigValue.NullValue,
+            "name"    -> ConfigValue.StringValue("dotbot"),
           ),
         ),
       ),
@@ -185,20 +194,22 @@ class ConfigReaderSuite extends munit.FunSuite:
   }
 
   test("reads TOML task alias and values through tomlj") {
-    val tasks = ConfigParsers.parseTasks(
-      "install.toml",
-      "toml",
-      """task = [
+    val tasks = ConfigParsers
+      .parseTasks(
+        "install.toml",
+        "toml",
+        """task = [
         |  { defaults = { create = { mode = 493 } } },
         |  { create = { generated = { mode = "700" } } },
         |]
         |""".stripMargin,
-    ).fold(error => fail(error.render), identity)
+      )
+      .fold(error => fail(error.render), identity)
 
     val numericMode = tasks.head.actions.head.data
       .field("create")
       .flatMap(_.field("mode"))
-    val stringMode = tasks(1).actions.head.data
+    val stringMode  = tasks(1).actions.head.data
       .field("generated")
       .flatMap(_.field("mode"))
 

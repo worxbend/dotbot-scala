@@ -32,11 +32,11 @@ import java.time.ZoneOffset
 
 class HandlerUnitSuite extends munit.FunSuite:
   test("create handler creates and chmods missing paths through the filesystem port") {
-    val base = "/workspace"
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory))
+    val base    = "/workspace"
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val path = PathUtil.join(base, "generated")
-    val spec = CreateSpec(Vector(CreateEntry.Path("generated", FileMode.rwxAll)))
+    val path    = PathUtil.join(base, "generated")
+    val spec    = CreateSpec(Vector(CreateEntry.Path("generated", FileMode.rwxAll)))
 
     assertEquals(CreateHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.hasDirectory(path))
@@ -51,18 +51,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("clean handler removes broken links that point inside the base directory") {
-    val base = "/workspace"
-    val dir = PathUtil.join(base, "stale")
+    val base       = "/workspace"
+    val dir        = PathUtil.join(base, "stale")
     val brokenLink = PathUtil.join(dir, "broken")
-    val fs = FakeFilesystem(
+    val fs         = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
-        dir -> FakeEntry.Directory,
+        base       -> FakeEntry.Directory,
+        dir        -> FakeEntry.Directory,
         brokenLink -> FakeEntry.Symlink("missing"),
       ),
     )
-    val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = false)))
+    val runtime    = TestRuntime(baseDirectory = base, fs = fs)
+    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = false)))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(!fs.lexists(brokenLink))
@@ -76,18 +76,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("clean handler leaves outside-base broken links unless force is enabled") {
-    val base = "/workspace"
-    val dir = PathUtil.join(base, "stale")
+    val base       = "/workspace"
+    val dir        = PathUtil.join(base, "stale")
     val brokenLink = PathUtil.join(dir, "external")
-    val fs = FakeFilesystem(
+    val fs         = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
-        dir -> FakeEntry.Directory,
+        base       -> FakeEntry.Directory,
+        dir        -> FakeEntry.Directory,
         brokenLink -> FakeEntry.Symlink("/outside/missing"),
       ),
     )
-    val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = false)))
+    val runtime    = TestRuntime(baseDirectory = base, fs = fs)
+    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = false)))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.lexists(brokenLink))
@@ -100,7 +100,7 @@ class HandlerUnitSuite extends munit.FunSuite:
     )
 
     val forceRuntime = TestRuntime(baseDirectory = base, fs = fs)
-    val forceSpec = CleanSpec(Vector(CleanEntry.Target("stale", force = true, recursive = false)))
+    val forceSpec    = CleanSpec(Vector(CleanEntry.Target("stale", force = true, recursive = false)))
 
     assertEquals(CleanHandler().execute(forceRuntime.ctx, forceSpec), Outcome.Ok)
     assert(!fs.lexists(brokenLink))
@@ -108,20 +108,20 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("clean handler recursively removes nested broken links") {
-    val base = "/workspace"
-    val dir = PathUtil.join(base, "stale")
-    val nested = PathUtil.join(dir, "nested")
+    val base       = "/workspace"
+    val dir        = PathUtil.join(base, "stale")
+    val nested     = PathUtil.join(dir, "nested")
     val brokenLink = PathUtil.join(nested, "broken")
-    val fs = FakeFilesystem(
+    val fs         = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
-        dir -> FakeEntry.Directory,
-        nested -> FakeEntry.Directory,
+        base       -> FakeEntry.Directory,
+        dir        -> FakeEntry.Directory,
+        nested     -> FakeEntry.Directory,
         brokenLink -> FakeEntry.Symlink("missing"),
       ),
     )
-    val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = true)))
+    val runtime    = TestRuntime(baseDirectory = base, fs = fs)
+    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = true)))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(!fs.lexists(brokenLink))
@@ -135,10 +135,10 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("clean handler ignores nonexistent target directories") {
-    val base = "/workspace"
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory))
+    val base    = "/workspace"
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = CleanSpec(Vector(CleanEntry.Target("missing", force = false, recursive = false)))
+    val spec    = CleanSpec(Vector(CleanEntry.Target("missing", force = false, recursive = false)))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.removeCalls, Vector.empty)
@@ -151,15 +151,15 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("shell handler passes typed options to the shell runner and reports failures") {
-    val base = "/workspace"
+    val base    = "/workspace"
     val timeout = Duration.ofSeconds(3)
-    val shell = ScriptedShellRunner(Vector(ShellExit.Completed(7)))
+    val shell   = ScriptedShellRunner(Vector(ShellExit.Completed(7)))
     val runtime = TestRuntime(
       baseDirectory = base,
       options = CoreOptions(verbose = 2, shellTimeout = timeout),
       shell = shell,
     )
-    val spec = ShellSpec(
+    val spec    = ShellSpec(
       Vector(
         ShellEntry.Command(
           command = "echo hi",
@@ -195,10 +195,10 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("shell handler logs quiet descriptions without echoing command text") {
-    val base = "/workspace"
-    val shell = ScriptedShellRunner(Vector(ShellExit.Completed(0)))
+    val base    = "/workspace"
+    val shell   = ScriptedShellRunner(Vector(ShellExit.Completed(0)))
     val runtime = TestRuntime(baseDirectory = base, shell = shell)
-    val spec = ShellSpec(
+    val spec    = ShellSpec(
       Vector(
         ShellEntry.Command(
           command = "secret command",
@@ -222,11 +222,11 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("shell handler treats timed out commands as failed executions") {
-    val base = "/workspace"
+    val base    = "/workspace"
     val timeout = Duration.ofMillis(25)
-    val shell = ScriptedShellRunner(Vector(ShellExit.TimedOut))
+    val shell   = ScriptedShellRunner(Vector(ShellExit.TimedOut))
     val runtime = TestRuntime(baseDirectory = base, options = CoreOptions(shellTimeout = timeout), shell = shell)
-    val spec = ShellSpec(
+    val spec    = ShellSpec(
       Vector(
         ShellEntry.Command(
           command = "sleep 5",
@@ -262,17 +262,17 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler creates symlinks through the filesystem port") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions())))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions())))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.readlink(link), Right(target))
@@ -285,18 +285,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler creates missing parent directories when requested") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val parent = PathUtil.join(base, "nested")
-    val link = PathUtil.join(parent, "linked.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val parent  = PathUtil.join(base, "nested")
+    val link    = PathUtil.join(parent, "linked.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("nested/linked.txt", "source.txt", LinkOptions(create = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("nested/linked.txt", "source.txt", LinkOptions(create = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.mkdirCalls, Vector(parent))
@@ -311,10 +311,10 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler reports nonexistent targets without ignore-missing") {
-    val base = "/workspace"
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory))
+    val base    = "/workspace"
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "missing.txt", LinkOptions())))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "missing.txt", LinkOptions())))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Failed)
     assert(!fs.lexists(PathUtil.join(base, "linked.txt")))
@@ -327,18 +327,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler accepts an existing symlink that already points at the target") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
-        link -> FakeEntry.Symlink(target),
+        link   -> FakeEntry.Symlink(target),
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions())))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions())))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.removeCalls, Vector.empty)
@@ -351,18 +351,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler can create hardlinks through the filesystem port") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
     val options = LinkOptions(linkType = LinkType.Hardlink)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", options)))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", options)))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.lexists(link))
@@ -376,18 +376,19 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler skips links when the conditional command fails") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
       ),
     )
-    val shell = ScriptedShellRunner(Vector(ShellExit.Completed(1)))
+    val shell   = ScriptedShellRunner(Vector(ShellExit.Completed(1)))
     val runtime = TestRuntime(baseDirectory = base, fs = fs, shell = shell)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(ifCommand = "test -f source.txt"))))
+    val spec    =
+      LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(ifCommand = "test -f source.txt"))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(!fs.lexists(link))
@@ -401,18 +402,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler expands a glob through the filesystem port") {
-    val base = "/workspace"
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
-        PathUtil.join(base, "source") -> FakeEntry.Directory,
+        base                                   -> FakeEntry.Directory,
+        PathUtil.join(base, "source")          -> FakeEntry.Directory,
         PathUtil.join(base, "source", "a.txt") -> FakeEntry.File,
         PathUtil.join(base, "source", "b.txt") -> FakeEntry.File,
-        PathUtil.join(base, "dest") -> FakeEntry.Directory,
+        PathUtil.join(base, "dest")            -> FakeEntry.Directory,
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("dest", "source/*", LinkOptions(glob = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("dest", "source/*", LinkOptions(glob = true))))
 
     // Globbing used to call `java.nio.file.Files` directly from core, so it reached the real disk
     // whatever filesystem was injected and this test could not be written at all.
@@ -430,17 +431,18 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler does not run the conditional command during a dry run") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
       ),
     )
-    val shell = ScriptedShellRunner(Vector.empty)
+    val shell   = ScriptedShellRunner(Vector.empty)
     val runtime = TestRuntime(baseDirectory = base, options = CoreOptions(dryRun = true), fs = fs, shell = shell)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(ifCommand = "touch marker"))))
+    val spec    =
+      LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(ifCommand = "touch marker"))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     // The point of the test: an `if` command is a side effect, so `--dry-run` must report it
@@ -456,11 +458,11 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler can create links for missing targets when ignore-missing is enabled") {
-    val base = "/workspace"
-    val link = PathUtil.join(base, "linked.txt")
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory))
+    val base    = "/workspace"
+    val link    = PathUtil.join(base, "linked.txt")
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "missing.txt", LinkOptions(ignoreMissing = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "missing.txt", LinkOptions(ignoreMissing = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.readlink(link), Right(PathUtil.join(base, "missing.txt")))
@@ -473,19 +475,19 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler relinks symlinks that point at the wrong target") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
+    val base      = "/workspace"
+    val target    = PathUtil.join(base, "source.txt")
+    val link      = PathUtil.join(base, "linked.txt")
     val oldTarget = PathUtil.join(base, "old.txt")
-    val fs = FakeFilesystem(
+    val fs        = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
-        link -> FakeEntry.Symlink(oldTarget),
+        link   -> FakeEntry.Symlink(oldTarget),
       ),
     )
-    val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(relink = true))))
+    val runtime   = TestRuntime(baseDirectory = base, fs = fs)
+    val spec      = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(relink = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.removeCalls, Vector(link))
@@ -500,20 +502,20 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler can force a symlink over an existing directory") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked-dir")
-    val child = PathUtil.join(link, "child.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked-dir")
+    val child   = PathUtil.join(link, "child.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
-        link -> FakeEntry.Directory,
-        child -> FakeEntry.File,
+        link   -> FakeEntry.Directory,
+        child  -> FakeEntry.File,
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked-dir", "source.txt", LinkOptions(force = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked-dir", "source.txt", LinkOptions(force = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.removeCalls, Vector(link))
@@ -529,20 +531,20 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler backs up existing files with the injected clock timestamp") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
-    val backup = PathUtil.join(base, "linked.txt.dotbot-backup.20200102-030405")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked.txt")
+    val backup  = PathUtil.join(base, "linked.txt.dotbot-backup.20200102-030405")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
-        link -> FakeEntry.File,
+        link   -> FakeEntry.File,
       ),
     )
-    val clock = Clock.fixed(Instant.parse("2020-01-02T03:04:05Z"), ZoneOffset.UTC)
+    val clock   = Clock.fixed(Instant.parse("2020-01-02T03:04:05Z"), ZoneOffset.UTC)
     val runtime = TestRuntime(baseDirectory = base, fs = fs, clock = clock)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(backup = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", LinkOptions(backup = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.paths.contains(backup))
@@ -557,16 +559,16 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler refuses to replace a path that is the same file as the target") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("source.txt", "source.txt", LinkOptions(force = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("source.txt", "source.txt", LinkOptions(force = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Failed)
     assertEquals(fs.removeCalls, Vector.empty)
@@ -580,19 +582,19 @@ class HandlerUnitSuite extends munit.FunSuite:
   }
 
   test("link handler rejects hardlinks when the destination is already a symlink") {
-    val base = "/workspace"
-    val target = PathUtil.join(base, "source.txt")
-    val link = PathUtil.join(base, "linked.txt")
-    val fs = FakeFilesystem(
+    val base    = "/workspace"
+    val target  = PathUtil.join(base, "source.txt")
+    val link    = PathUtil.join(base, "linked.txt")
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
+        base   -> FakeEntry.Directory,
         target -> FakeEntry.File,
-        link -> FakeEntry.Symlink(target),
+        link   -> FakeEntry.Symlink(target),
       ),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
     val options = LinkOptions(linkType = LinkType.Hardlink)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", options)))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("linked.txt", "source.txt", options)))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Failed)
     assertEquals(fs.readlink(link), Right(target))

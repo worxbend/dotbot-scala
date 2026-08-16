@@ -26,20 +26,20 @@ object Environment:
    */
   object System extends Environment:
     def variable(name: String): Option[String] = sys.env.get(name)
-    def homeDirectory: String = sys.props("user.home")
-    def workingDirectory: String = sys.props("user.dir")
+    def homeDirectory: String                  = sys.props("user.home")
+    def workingDirectory: String               = sys.props("user.dir")
 
   /**
    * A fixed environment, for tests and for any caller that needs expansion to be reproducible.
    */
   def fixed(
-    variables:        Map[String, String] = Map.empty,
-    homeDirectory:    String = "/home/test",
-    workingDirectory: String = "/workspace",
+      variables: Map[String, String] = Map.empty,
+      homeDirectory: String = "/home/test",
+      workingDirectory: String = "/workspace",
   ): Environment =
-    val home = homeDirectory
+    val home    = homeDirectory
     val working = workingDirectory
     new Environment:
       def variable(name: String): Option[String] = variables.get(name)
-      def homeDirectory: String = home
-      def workingDirectory: String = working
+      def homeDirectory: String                  = home
+      def workingDirectory: String               = working

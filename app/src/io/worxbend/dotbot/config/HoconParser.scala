@@ -32,17 +32,17 @@ private[config] object HoconParser:
    */
   def parse(data: String, path: String): Either[DotbotError, ConfigValue] =
     try
-      val (configText, rootPath) = hoconInput(data)
-      val options = ConfigParseOptions
+      val (configText, rootPath)    = hoconInput(data)
+      val options                   = ConfigParseOptions
         .defaults()
         .setSyntax(ConfigSyntax.CONF)
         .setOriginDescription(path)
-      val parsed = ConfigFactory.parseString(configText, options)
+      val parsed                    = ConfigFactory.parseString(configText, options)
       // `Config.getValue` reports a null value as a missing key, so the wrapper is read off the
       // root object instead, where an explicit null survives as a null value.
       val root: TypesafeConfigValue =
         rootPath.fold(parsed.root())(valuePath => parsed.root().get(valuePath))
-  
+
       checkTaskOrder(path, root).map(_ => fromTypesafe(root))
     catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
 
@@ -53,11 +53,12 @@ private[config] object HoconParser:
   private def hoconInput(data: String): (String, Option[String]) =
     val trimmed = data.dropWhile(_.isWhitespace)
     if trimmed.startsWith("[") || isRootNull(trimmed) then s"tasks = $data" -> Some("tasks")
-    else data -> None
-  
+    else data                                                               -> None
+
   private def isRootNull(trimmed: String): Boolean =
     val nullToken = "null"
-    trimmed == nullToken || (trimmed.startsWith(nullToken) && trimmed.drop(nullToken.length).headOption.exists(_.isWhitespace))
+    trimmed == nullToken || (trimmed
+      .startsWith(nullToken) && trimmed.drop(nullToken.length).headOption.exists(_.isWhitespace))
 
   /**
    * Reject a task whose directives cannot be put back into the order they were written.
@@ -70,17 +71,17 @@ private[config] object HoconParser:
    */
   private def checkTaskOrder(path: String, root: TypesafeConfigValue): Either[DotbotError, Unit] =
     EitherUtil.traverse(taskObjects(root))(checkOneTaskOrder(path, _)).map(_ => ())
-  
+
   private def taskObjects(root: TypesafeConfigValue): Vector[ConfigObject] =
     val list =
       root match
         case items: ConfigList => Some(items)
         case obj: ConfigObject =>
           Vector("tasks", "task").iterator.map(obj.get).collectFirst { case items: ConfigList => items }
-        case _ => None
-  
+        case _                 => None
+
     list.toVector.flatMap(_.asScala.toVector).collect { case obj: ConfigObject => obj }
-  
+
   private def checkOneTaskOrder(path: String, task: ConfigObject): Either[DotbotError, Unit] =
     val sharingALine = task
       .entrySet()
@@ -88,21 +89,21 @@ private[config] object HoconParser:
       .toVector
       .groupBy(entry => entry.getValue.origin().lineNumber())
       .collectFirst { case (line, entries) if entries.size > 1 => line -> entries.map(_.getKey).sorted }
-  
+
     sharingALine match
-      case None => Right(())
+      case None               => Right(())
       case Some((line, keys)) =>
         Left(DotbotError.AmbiguousTaskOrder(path, line, keys))
 
   private def fromTypesafe(value: TypesafeConfigValue): ConfigValue =
     value match
-      case list: ConfigList     =>
+      case list: ConfigList  =>
         ConfigValue.ArrayValue(list.asScala.toVector.map(fromTypesafe))
-      case obj: ConfigObject    =>
+      case obj: ConfigObject =>
         ConfigValue.ObjectValue(typesafeFields(obj))
-      case scalar               =>
+      case scalar            =>
         fromTypesafeScalar(scalar)
-  
+
   /**
    * Read an object's fields in the order they were written in the file.
    *
@@ -126,7 +127,7 @@ private[config] object HoconParser:
       // be ordered from source; every task in the shipped examples is written one field per line.
       .sortBy(_.getValue.origin().lineNumber())
       .map(entry => entry.getKey -> fromTypesafe(entry.getValue))
-  
+
   private def fromTypesafeScalar(value: TypesafeConfigValue): ConfigValue =
     value.valueType() match
       case ConfigValueType.NULL    => ConfigValue.NullValue
@@ -134,7 +135,7 @@ private[config] object HoconParser:
       case ConfigValueType.NUMBER  => ConfigValue.NumberValue(typesafeNumberValue(value.unwrapped()))
       case ConfigValueType.STRING  => ConfigValue.StringValue(value.unwrapped().toString)
       case _                       => ConfigValue.StringValue(value.unwrapped().toString)
-  
+
   private def typesafeNumberValue(value: Matchable): BigDecimal =
     value match
       case item: java.lang.Number => ConfigNumbers.numberValue(item)

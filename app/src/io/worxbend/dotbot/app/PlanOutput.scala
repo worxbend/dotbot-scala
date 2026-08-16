@@ -14,7 +14,9 @@ object PlanOutput:
    * @param stylish when true, render emoji icons and a decorated header.
    */
   def text(plan: Plan, taskCount: Int, configFileCount: Int, base: String, stylish: Boolean = false): String =
-    val lines = if stylish then stylishHeader(plan.operations.size, taskCount, configFileCount, base) else plainHeader(plan, taskCount, configFileCount, base)
+    val lines      =
+      if stylish then stylishHeader(plan.operations.size, taskCount, configFileCount, base)
+      else plainHeader(plan, taskCount, configFileCount, base)
     val operations = plan.operations.map(operation => renderTextOperation(operation, stylish))
     (lines ++ operations).mkString("", "\n", "\n")
 
@@ -23,16 +25,16 @@ object PlanOutput:
    */
   def json(plan: Plan, taskCount: Int, configFileCount: Int, base: String): String =
     val doc = ujson.Obj(
-      "task_count" -> taskCount,
+      "task_count"        -> taskCount,
       "config_file_count" -> configFileCount,
-      "operation_count" -> plan.operations.size,
-      "base" -> base,
-      "operations" -> ujson.Arr.from(
+      "operation_count"   -> plan.operations.size,
+      "base"              -> base,
+      "operations"        -> ujson.Arr.from(
         plan.operations.map { operation =>
           ujson.Obj(
             "directive" -> operation.directive.label,
-            "target" -> operation.target,
-            "detail" -> operation.detail,
+            "target"    -> operation.target,
+            "detail"    -> operation.detail,
           )
         },
       ),
@@ -40,10 +42,12 @@ object PlanOutput:
     ujson.write(doc, indent = 2) + "\n"
 
   private def plainHeader(plan: Plan, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
-    Vector(s"Plan: ${plan.operations.size} operation(s), $taskCount task(s), $configFileCount config file(s), base $base")
+    Vector(
+      s"Plan: ${plan.operations.size} operation(s), $taskCount task(s), $configFileCount config file(s), base $base",
+    )
 
   private def stylishHeader(operationCount: Int, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
-    val metricLines = Vector(
+    val metricLines  = Vector(
       "🗺️  plan",
       s"🧭 operations: $operationCount operation(s)",
       s"🧩 tasks: $taskCount task(s)",
@@ -51,9 +55,9 @@ object PlanOutput:
       s"🏠 base: $base",
     )
     val contentWidth = metricLines.map(displayWidth).max + 2
-    val top = s"╭${"─" * (contentWidth + 2)}╮"
-    val bottom = s"╰${"─" * (contentWidth + 2)}╯"
-    val body = metricLines.map(line => s"│ $line${" " * (contentWidth - displayWidth(line))} │")
+    val top          = s"╭${"─" * (contentWidth + 2)}╮"
+    val bottom       = s"╰${"─" * (contentWidth + 2)}╯"
+    val body         = metricLines.map(line => s"│ $line${" " * (contentWidth - displayWidth(line))} │")
     top +: body :+ bottom
 
   /**
@@ -72,16 +76,15 @@ object PlanOutput:
     else if codePoint >= FirstWideCodePoint then 2
     else 1
 
-  private val VariationSelector: Int = 0xfe0f
-  private val ZeroWidthJoiner: Int = 0x200d
+  private val VariationSelector: Int  = 0xfe0f
+  private val ZeroWidthJoiner: Int    = 0x200d
   private val FirstWideCodePoint: Int = 0x1f300
 
   private def renderTextOperation(operation: Operation, stylish: Boolean): String =
     val detail =
       if operation.detail.isEmpty then ""
       else operation.detailStyle.suffix(operation.detail)
-    if stylish then
-      s"${directiveIcon(operation.directive)} ${operation.directive.label}  ${operation.target}$detail"
+    if stylish then s"${directiveIcon(operation.directive)} ${operation.directive.label}  ${operation.target}$detail"
     else
       // Pad the directive label into a fixed column so targets line up. This must not be an `s`
       // interpolator: `%-7s` is a printf directive and `s` would emit it as literal text.
@@ -100,9 +103,9 @@ object PlanOutput:
 
   private def directiveIcon(directive: Directive): String =
     directive match
-      case Directive.Clean  => "🧹"
-      case Directive.Create => "📁"
-      case Directive.Link   => "🔗"
-      case Directive.Shell  => "🛠️"
+      case Directive.Clean    => "🧹"
+      case Directive.Create   => "📁"
+      case Directive.Link     => "🔗"
+      case Directive.Shell    => "🛠️"
       case Directive.Defaults => "⚙️"
-      case _                => "📌"
+      case _                  => "📌"

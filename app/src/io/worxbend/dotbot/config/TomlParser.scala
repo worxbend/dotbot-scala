@@ -18,16 +18,16 @@ private[config] object TomlParser:
 
   private def fromToml(value: Matchable | Null): ConfigValue =
     Option(value).fold(ConfigValue.NullValue)(fromTomlValue)
-  
+
   private def fromTomlValue(value: Matchable): ConfigValue =
     value match
-      case item: java.lang.Boolean     => ConfigValue.BoolValue(item.booleanValue())
-      case item: java.lang.Number      => ConfigValue.NumberValue(ConfigNumbers.numberValue(item))
-      case item: String                => ConfigValue.StringValue(item)
-      case item: org.tomlj.TomlTable   =>
+      case item: java.lang.Boolean   => ConfigValue.BoolValue(item.booleanValue())
+      case item: java.lang.Number    => ConfigValue.NumberValue(ConfigNumbers.numberValue(item))
+      case item: String              => ConfigValue.StringValue(item)
+      case item: org.tomlj.TomlTable =>
         ConfigValue.ObjectValue(
           item.entrySet().asScala.toVector.map(entry => entry.getKey -> fromToml(entry.getValue)),
         )
-      case item: org.tomlj.TomlArray   =>
+      case item: org.tomlj.TomlArray =>
         ConfigValue.ArrayValue(item.toList.asScala.toVector.map(fromToml))
-      case other                       => ConfigValue.StringValue(other.toString)
+      case other                     => ConfigValue.StringValue(other.toString)

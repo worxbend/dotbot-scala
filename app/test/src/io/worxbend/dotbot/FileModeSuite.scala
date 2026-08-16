@@ -31,7 +31,7 @@ class FileModeSuite extends munit.FunSuite:
   }
 
   test("decodes both config spellings of the same mode to the same value") {
-    val fallback = FileMode.rwxAll
+    val fallback   = FileMode.rwxAll
     val fromString = FileMode.decodeConfig(Some(ConfigValue.StringValue("0755")), fallback, "bad")
     val fromNumber = FileMode.decodeConfig(Some(ConfigValue.NumberValue(BigDecimal(755))), fallback, "bad")
 

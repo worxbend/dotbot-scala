@@ -10,7 +10,7 @@ import java.io.PrintStream
 
 class DotbotAppSuite extends munit.FunSuite:
   test("prints JSON plan without applying changes") {
-    val root = os.temp.dir(prefix = "dotbot-scala-plan-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-plan-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -22,7 +22,7 @@ class DotbotAppSuite extends munit.FunSuite:
     )
 
     val output = ByteArrayOutputStream()
-    val code = DotbotApp.run(
+    val code   = DotbotApp.run(
       AppOptions(configFiles = Vector(config.toString), mode = RunMode.Plan(OutputFormat.Json), noColor = true),
       PrintStream(output),
     )
@@ -36,7 +36,7 @@ class DotbotAppSuite extends munit.FunSuite:
   }
 
   test("dry run leaves filesystem untouched") {
-    val root = os.temp.dir(prefix = "dotbot-scala-dry-run-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-dry-run-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -46,7 +46,7 @@ class DotbotAppSuite extends munit.FunSuite:
     )
 
     val output = ByteArrayOutputStream()
-    val code = DotbotApp.run(
+    val code   = DotbotApp.run(
       AppOptions(configFiles = Vector(config.toString), dryRun = true, noColor = true),
       PrintStream(output),
     )
@@ -57,7 +57,7 @@ class DotbotAppSuite extends munit.FunSuite:
   }
 
   test("creates symlinks relative to the config base directory") {
-    val root = os.temp.dir(prefix = "dotbot-scala-link-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-link-")
     os.write(root / "source.txt", "hello\n")
     val config = root / "install.conf.yaml"
     os.write(
@@ -71,7 +71,7 @@ class DotbotAppSuite extends munit.FunSuite:
     )
 
     val output = ByteArrayOutputStream()
-    val code = DotbotApp.run(
+    val code   = DotbotApp.run(
       AppOptions(configFiles = Vector(config.toString), noColor = true),
       PrintStream(output),
     )

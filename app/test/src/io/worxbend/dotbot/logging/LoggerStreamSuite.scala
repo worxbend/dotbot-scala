@@ -46,7 +46,7 @@ class LoggerStreamSuite extends munit.FunSuite:
   }
 
   test("symbols prefix the badge only when they are enabled") {
-    val plain = ByteArrayOutputStream()
+    val plain   = ByteArrayOutputStream()
     val stylish = ByteArrayOutputStream()
 
     Logger(PrintStream(plain), Level.Action, TerminalCapabilities(color = false, symbols = false)).action("go")
@@ -59,7 +59,7 @@ class LoggerStreamSuite extends munit.FunSuite:
   }
 
   test("messages line up in the same column whether or not color is on") {
-    val plain = ByteArrayOutputStream()
+    val plain   = ByteArrayOutputStream()
     val colored = ByteArrayOutputStream()
 
     Logger(PrintStream(plain), Level.Debug, color = false).info("aligned")

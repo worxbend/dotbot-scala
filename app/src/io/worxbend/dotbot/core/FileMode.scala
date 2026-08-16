@@ -3,14 +3,14 @@ package io.worxbend.dotbot.core
 opaque type FileMode = Int
 
 object FileMode:
-  val ownerRead: FileMode = octalLiteral("400")
-  val ownerWrite: FileMode = octalLiteral("200")
-  val ownerExecute: FileMode = octalLiteral("100")
-  val groupRead: FileMode = octalLiteral("040")
-  val groupWrite: FileMode = octalLiteral("020")
-  val groupExecute: FileMode = octalLiteral("010")
-  val othersRead: FileMode = octalLiteral("004")
-  val othersWrite: FileMode = octalLiteral("002")
+  val ownerRead: FileMode     = octalLiteral("400")
+  val ownerWrite: FileMode    = octalLiteral("200")
+  val ownerExecute: FileMode  = octalLiteral("100")
+  val groupRead: FileMode     = octalLiteral("040")
+  val groupWrite: FileMode    = octalLiteral("020")
+  val groupExecute: FileMode  = octalLiteral("010")
+  val othersRead: FileMode    = octalLiteral("004")
+  val othersWrite: FileMode   = octalLiteral("002")
   val othersExecute: FileMode = octalLiteral("001")
 
   val rwxAll: FileMode = octalLiteral("777")

@@ -13,8 +13,17 @@ class DotbotErrorSuite extends munit.FunSuite:
 
   test("renders config and handler errors at the app edge") {
     assertEquals(DotbotError.ActionNotHandled(Directive.Unknown("custom")).render, "action custom not handled")
-    assertEquals(DotbotError.ConfigReadFailed("install.conf", "missing").render, "could not read config file \"install.conf\": missing")
+    assertEquals(
+      DotbotError.ConfigReadFailed("install.conf", "missing").render,
+      "could not read config file \"install.conf\": missing",
+    )
     assertEquals(DotbotError.UnsupportedConfigFormat("json5").render, "unsupported config file format .json5")
-    assertEquals(DotbotError.ConfigRootNotTaskList("install.conf").render, "configuration file \"install.conf\" must be a list of tasks")
-    assertEquals(DotbotError.ConfigTaskNotMapping("install.conf", 2).render, "configuration task 2 in \"install.conf\" must be a mapping")
+    assertEquals(
+      DotbotError.ConfigRootNotTaskList("install.conf").render,
+      "configuration file \"install.conf\" must be a list of tasks",
+    )
+    assertEquals(
+      DotbotError.ConfigTaskNotMapping("install.conf", 2).render,
+      "configuration task 2 in \"install.conf\" must be a mapping",
+    )
   }

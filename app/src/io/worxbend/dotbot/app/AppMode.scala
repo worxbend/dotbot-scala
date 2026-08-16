@@ -14,7 +14,7 @@ object OutputFormat:
   def fromString(value: String): OutputFormatArgument =
     value match
       case "" | "text" => OutputFormatArgument.Valid(OutputFormat.Text)
-      case "json"     => OutputFormatArgument.Valid(OutputFormat.Json)
+      case "json"      => OutputFormatArgument.Valid(OutputFormat.Json)
       case other       => OutputFormatArgument.Invalid(other)
 
 /**
@@ -29,7 +29,7 @@ enum OutputFormatArgument:
    */
   def toRunMode: RunMode =
     this match
-      case OutputFormatArgument.Valid(format) => RunMode.Plan(format)
+      case OutputFormatArgument.Valid(format)  => RunMode.Plan(format)
       case OutputFormatArgument.Invalid(value) => RunMode.InvalidPlanOutput(value)
 
 /**

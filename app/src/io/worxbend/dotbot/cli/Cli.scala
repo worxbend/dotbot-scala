@@ -22,23 +22,23 @@ import java.util.function.UnaryOperator
 /**
  * Mutable parser state for one command context (root/apply, validate, or plan).
  */
-private final case class CliState(
-  quiet:         Boolean = false,
-  verbose:       Int = 0,
-  baseDirectory: String = "",
-  configFiles:   List[String] = Nil,
-  only:          Vector[Directive] = Vector.empty,
-  skip:          Vector[Directive] = Vector.empty,
-  forceColor:    Boolean = false,
-  noColor:       Boolean = false,
-  forceEmoji:    Boolean = false,
-  noEmoji:       Boolean = false,
-  dryRun:        Boolean = false,
-  exitOnFailure: Boolean = false,
-  shellTimeout:  Duration = CliState.DefaultShellTimeout,
-  planOutput:    OutputFormatArgument = OutputFormatArgument.Valid(OutputFormat.Text),
-  unknownDirectives: Vector[String] = Vector.empty,
-  invalidShellTimeouts: Vector[String] = Vector.empty,
+final private case class CliState(
+    quiet: Boolean = false,
+    verbose: Int = 0,
+    baseDirectory: String = "",
+    configFiles: List[String] = Nil,
+    only: Vector[Directive] = Vector.empty,
+    skip: Vector[Directive] = Vector.empty,
+    forceColor: Boolean = false,
+    noColor: Boolean = false,
+    forceEmoji: Boolean = false,
+    noEmoji: Boolean = false,
+    dryRun: Boolean = false,
+    exitOnFailure: Boolean = false,
+    shellTimeout: Duration = CliState.DefaultShellTimeout,
+    planOutput: OutputFormatArgument = OutputFormatArgument.Valid(OutputFormat.Text),
+    unknownDirectives: Vector[String] = Vector.empty,
+    invalidShellTimeouts: Vector[String] = Vector.empty,
 ):
   /**
    * Merge a nested subcommand state with values inherited from the parent command.
@@ -92,7 +92,7 @@ private object CliState:
 /**
  * Thread-safe builder that owns Picocli mutation side effects.
  */
-private final class CliStateBuilder:
+final private class CliStateBuilder:
   // Picocli's programmatic setters are effectful; keep that mutation at this boundary.
   private val current = AtomicReference(CliState())
 
@@ -187,11 +187,12 @@ object Cli:
    * @param stderr command error stream (also used for help output).
    */
   def execute(args: Array[String], stdout: PrintStream = System.out, stderr: PrintStream = System.err): Int =
-    val rootState = CliStateBuilder()
+    val rootState     = CliStateBuilder()
     val validateState = CliStateBuilder()
-    val planState = CliStateBuilder()
+    val planState     = CliStateBuilder()
 
-    val root = CommandSpec.create()
+    val root = CommandSpec
+      .create()
       .name("dotbot-scala")
       .version(s"Dotbot-Scala version ${DotbotApp.version}")
     root.usageMessage().description("A Scala 3 port of Dotbot for bootstrapping dotfiles")
@@ -199,13 +200,15 @@ object Cli:
     addCommonOptions(root, rootState)
     addApplyOptions(root, rootState)
 
-    val validate = CommandSpec.create()
+    val validate = CommandSpec
+      .create()
       .name("validate")
     validate.usageMessage().description("Validate configuration without applying changes")
     addHelpOptions(validate)
     addCommonOptions(validate, validateState)
 
-    val plan = CommandSpec.create()
+    val plan = CommandSpec
+      .create()
       .name("plan")
     plan.usageMessage().description("Print planned operations without applying changes")
     addHelpOptions(plan)
@@ -233,10 +236,10 @@ object Cli:
     command.execute(args*)
 
   private def cliCommand(
-    parseResult:   ParseResult,
-    rootState:     CliState,
-    validateState: CliState,
-    planState:     CliState,
+      parseResult: ParseResult,
+      rootState: CliState,
+      validateState: CliState,
+      planState: CliState,
   ): CliCommand =
     if parseResult.hasSubcommand then
       parseResult.subcommand().commandSpec().name() match
@@ -285,21 +288,27 @@ object Cli:
 
   private def addHelpOptions(spec: CommandSpec): Unit =
     spec.addOption(
-      OptionSpec.builder(Array("-h", "--help"))
+      OptionSpec
+        .builder(Array("-h", "--help"))
         .description("Show this help message and exit.")
         .usageHelp(true)
         .build(),
     ): Unit
     spec.addOption(
-      OptionSpec.builder(Array("-V", "--version"))
+      OptionSpec
+        .builder(Array("-V", "--version"))
         .description("Print version information and exit.")
         .versionHelp(true)
         .build(),
     ): Unit
 
   private def addApplyOptions(spec: CommandSpec, state: CliStateBuilder): Unit =
-    spec.addOption(booleanOption(Array("-n", "--dry-run"), "print what would be done, without doing it", state.enableDryRun)): Unit
-    spec.addOption(booleanOption(Array("-x", "--exit-on-failure"), "exit after first failed directive", state.enableExitOnFailure)): Unit
+    spec.addOption(
+      booleanOption(Array("-n", "--dry-run"), "print what would be done, without doing it", state.enableDryRun),
+    ): Unit
+    spec.addOption(
+      booleanOption(Array("-x", "--exit-on-failure"), "exit after first failed directive", state.enableExitOnFailure),
+    ): Unit
     spec.addOption(
       stringOption(
         Array("--shell-timeout"),
@@ -310,7 +319,8 @@ object Cli:
     ): Unit
 
   private def verboseOption(state: CliStateBuilder): OptionSpec =
-    OptionSpec.builder(Array("-v", "--verbose"))
+    OptionSpec
+      .builder(Array("-v", "--verbose"))
       .description("-v: show informational messages; -vv: also stream shell command output")
       .`type`(classOf[java.lang.Boolean])
       .arity("0")
@@ -318,7 +328,8 @@ object Cli:
       .build()
 
   private def booleanOption(names: Array[String], description: String, update: () => Unit): OptionSpec =
-    OptionSpec.builder(names)
+    OptionSpec
+      .builder(names)
       .description(description)
       .`type`(classOf[java.lang.Boolean])
       .arity("0")
@@ -326,12 +337,13 @@ object Cli:
       .build()
 
   private def stringOption(
-    names:       Array[String],
-    description: String,
-    update:      String => Unit,
-    paramLabel:  String = "",
+      names: Array[String],
+      description: String,
+      update: String => Unit,
+      paramLabel: String = "",
   ): OptionSpec =
-    val builder = OptionSpec.builder(names)
+    val builder = OptionSpec
+      .builder(names)
       .description(description)
       .`type`(classOf[String])
       .setter(setter(value => Option(value).foreach(item => update(String.valueOf(item)))))
@@ -353,7 +365,7 @@ object Cli:
    * installed when nothing had run.
    */
   private[cli] def splitDirectiveList(value: String): Either[Vector[String], Vector[Directive]] =
-    val names = value.split(",").iterator.map(_.trim).filter(_.nonEmpty).toVector
+    val names   = value.split(",").iterator.map(_.trim).filter(_.nonEmpty).toVector
     val unknown = names.filter(Directive.fromString(_).isEmpty)
     if unknown.nonEmpty then Left(unknown)
     else Right(names.flatMap(Directive.fromString))
@@ -374,9 +386,9 @@ object Cli:
       case None          => state.addInvalidShellTimeout(value)
 
   private def applyDirectiveList(
-    state: CliStateBuilder,
-    value: String,
-    accept: Vector[Directive] => Unit,
+      state: CliStateBuilder,
+      value: String,
+      accept: Vector[Directive] => Unit,
   ): Unit =
     splitDirectiveList(value) match
       case Right(directives) => accept(directives)

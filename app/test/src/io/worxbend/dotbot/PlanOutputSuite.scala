@@ -27,7 +27,7 @@ class PlanOutputSuite extends munit.FunSuite:
   }
 
   test("targets start in the same column for every directive") {
-    val lines = PlanOutput.text(threeOperations, 3, 1, "/tmp/home").linesIterator.drop(1).toVector
+    val lines         = PlanOutput.text(threeOperations, 3, 1, "/tmp/home").linesIterator.drop(1).toVector
     val targetColumns = lines.map(line => line.indexOf(line.trim.split(" +")(1)))
 
     // The column is what makes a plan scannable; it used to print the literal text "%-7s".
@@ -70,16 +70,21 @@ class PlanOutputSuite extends munit.FunSuite:
    * specification of the expected layout rather than a restatement of the code under test.
    */
   private def terminalColumns(text: String): Int =
-    text.codePoints().toArray.toVector.map {
-      case 0xfe0f | 0x200d => 0 // variation selector and zero-width joiner draw nothing
-      case wide if wide >= 0x1f300 => 2 // emoji occupy two columns
-      case _ => 1
-    }.sum
+    text
+      .codePoints()
+      .toArray
+      .toVector
+      .map {
+        case 0xfe0f | 0x200d         => 0 // variation selector and zero-width joiner draw nothing
+        case wide if wide >= 0x1f300 => 2 // emoji occupy two columns
+        case _                       => 1
+      }
+      .sum
 
   test("stylish output draws a box whose borders all line up") {
     val rendered = PlanOutput.text(threeOperations, 3, 1, "/tmp/home", stylish = true)
-    val lines = rendered.linesIterator.toVector
-    val box = lines.filter(line => line.startsWith("╭") || line.startsWith("│") || line.startsWith("╰"))
+    val lines    = rendered.linesIterator.toVector
+    val box      = lines.filter(line => line.startsWith("╭") || line.startsWith("│") || line.startsWith("╰"))
 
     // Measured in UTF-16 units an emoji counts as three, so the right-hand border used to sit a
     // column or two off on exactly the lines that had one.
@@ -91,7 +96,7 @@ class PlanOutputSuite extends munit.FunSuite:
 
   test("a long base directory widens the whole box, not just its own line") {
     val rendered = PlanOutput.text(threeOperations, 3, 1, "/a/very/long/base/directory/path", stylish = true)
-    val box = rendered.linesIterator.toVector.filter(line =>
+    val box      = rendered.linesIterator.toVector.filter(line =>
       line.startsWith("╭") || line.startsWith("│") || line.startsWith("╰"),
     )
 

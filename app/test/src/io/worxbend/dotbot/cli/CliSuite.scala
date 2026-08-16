@@ -47,7 +47,7 @@ class CliSuite extends munit.FunSuite:
   }
 
   test("subcommand state inherits the root command's options") {
-    val root = CliState(
+    val root   = CliState(
       quiet = true,
       verbose = 1,
       baseDirectory = "/root/base",

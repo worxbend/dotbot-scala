@@ -23,9 +23,9 @@ class HandlerRegressionSuite extends munit.FunSuite:
   private val base = "/workspace"
 
   test("a link with a missing target does not create its parent directory") {
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory))
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(
+    val spec    = LinkSpec(
       None,
       Vector(LinkEntry.Link("nested/deep/config", "missing-source.conf", LinkOptions(create = true))),
     )
@@ -39,21 +39,21 @@ class HandlerRegressionSuite extends munit.FunSuite:
   }
 
   test("a link with a present target still creates its parent directory") {
-    val fs = FakeFilesystem(
+    val fs      = FakeFilesystem(
       Map(base -> FakeEntry.Directory, s"$base/source.conf" -> FakeEntry.File),
     )
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("nested/config", "source.conf", LinkOptions(create = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("nested/config", "source.conf", LinkOptions(create = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.mkdirCalls, Vector(s"$base/nested"))
   }
 
   test("a directory named like a variable is not expanded during a recursive clean") {
-    val fs = FakeFilesystem(
+    val fs      = FakeFilesystem(
       Map(
-        base -> FakeEntry.Directory,
-        s"$base/$$cache" -> FakeEntry.Directory,
+        base                    -> FakeEntry.Directory,
+        s"$base/$$cache"        -> FakeEntry.Directory,
         s"$base/$$cache/broken" -> FakeEntry.Symlink(s"$base/gone"),
       ),
     )
@@ -63,7 +63,7 @@ class HandlerRegressionSuite extends munit.FunSuite:
       // If the entry name were expanded again, this value would be substituted for it.
       paths = TestEnvironment.resolver(Map("cache" -> "/somewhere/else")),
     )
-    val spec = CleanSpec(Vector(CleanEntry.Target(base, force = false, recursive = true)))
+    val spec    = CleanSpec(Vector(CleanEntry.Target(base, force = false, recursive = true)))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
 
@@ -73,9 +73,9 @@ class HandlerRegressionSuite extends munit.FunSuite:
   }
 
   test("an unset variable in a clean target does not turn it into the filesystem root") {
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory, "/" -> FakeEntry.Directory))
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory, "/" -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec = CleanSpec(Vector(CleanEntry.Target("$XDG_CONFIG_HOME", force = true, recursive = true)))
+    val spec    = CleanSpec(Vector(CleanEntry.Target("$XDG_CONFIG_HOME", force = true, recursive = true)))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
 
@@ -85,13 +85,13 @@ class HandlerRegressionSuite extends munit.FunSuite:
   }
 
   test("dry run reports the link it would create without touching the filesystem") {
-    val fs = FakeFilesystem(Map(base -> FakeEntry.Directory, s"$base/source.conf" -> FakeEntry.File))
+    val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory, s"$base/source.conf" -> FakeEntry.File))
     val runtime = TestRuntime(
       baseDirectory = base,
       options = CoreOptions(dryRun = true),
       fs = fs,
     )
-    val spec = LinkSpec(None, Vector(LinkEntry.Link("nested/config", "source.conf", LinkOptions(create = true))))
+    val spec    = LinkSpec(None, Vector(LinkEntry.Link("nested/config", "source.conf", LinkOptions(create = true))))
 
     assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.mkdirCalls, Vector.empty)

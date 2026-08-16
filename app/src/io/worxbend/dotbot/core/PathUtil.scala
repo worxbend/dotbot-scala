@@ -65,7 +65,7 @@ final class PathResolver(env: Environment):
     normalizeAgainst(base, this.path(path))
 
   private def normalizeAgainst(base: String, expanded: String): String =
-    val nio = Paths.get(expanded)
+    val nio      = Paths.get(expanded)
     val absolute = if nio.isAbsolute then nio else Paths.get(base, expanded)
     absolute.normalize().toString
 

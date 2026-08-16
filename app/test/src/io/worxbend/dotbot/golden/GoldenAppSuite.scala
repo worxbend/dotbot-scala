@@ -16,7 +16,7 @@ import java.time.ZoneOffset
 
 class GoldenAppSuite extends munit.FunSuite:
   test("plan text output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-plan-text-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-plan-text-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -29,14 +29,16 @@ class GoldenAppSuite extends munit.FunSuite:
         |""".stripMargin,
     )
 
-    val result = run(root, AppOptions(configFiles = Vector(config.toString), mode = RunMode.Plan(OutputFormat.Text), noColor = true))
+    val result = run(
+      root,
+      AppOptions(configFiles = Vector(config.toString), mode = RunMode.Plan(OutputFormat.Text), noColor = true),
+    )
 
     assertEquals(
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""Plan: 3 operation(s), 3 task(s), 1 config file(s), base $root
+        stdout = s"""Plan: 3 operation(s), 3 task(s), 1 config file(s), base $root
              |create  generated
              |link    linked.txt -> source.txt
              |shell   echo ok [Echo]
@@ -47,7 +49,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("plan json output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-plan-json-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-plan-json-")
     val config = root / "install.toml"
     os.write(
       config,
@@ -58,14 +60,16 @@ class GoldenAppSuite extends munit.FunSuite:
         |""".stripMargin,
     )
 
-    val result = run(root, AppOptions(configFiles = Vector(config.toString), mode = RunMode.Plan(OutputFormat.Json), noColor = true))
+    val result = run(
+      root,
+      AppOptions(configFiles = Vector(config.toString), mode = RunMode.Plan(OutputFormat.Json), noColor = true),
+    )
 
     assertEquals(
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""{
+        stdout = s"""{
              |  "task_count": 2,
              |  "config_file_count": 1,
              |  "operation_count": 2,
@@ -90,7 +94,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("dry run create output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-dry-run-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-dry-run-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -105,8 +109,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
              |step  Would create path $root/generated
              |""".stripMargin,
         tree = Vector("F install.conf.yaml"),
@@ -115,7 +118,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("apply create output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-apply-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-apply-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -130,8 +133,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  Creating path $root/generated
              |""".stripMargin,
         tree = Vector("D generated", "F install.conf.yaml"),
@@ -140,7 +142,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("validate happy output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-validate-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-validate-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -155,8 +157,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Configuration is valid: 1 task(s), 1 config file(s), 1 planned operation(s), base $root
+        stdout = s"""step  Configuration is valid: 1 task(s), 1 config file(s), 1 planned operation(s), base $root
              |""".stripMargin,
         tree = Vector("F install.conf.yaml"),
       ),
@@ -164,7 +165,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("dry run clean broken link output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-clean-dry-run-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-clean-dry-run-")
     val config = root / "install.conf.yaml"
     os.makeDir(root / "cleanable")
     Files.createSymbolicLink(Paths.get((root / "cleanable" / "stale").toString), Paths.get("../missing.txt"))
@@ -181,8 +182,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
              |step  Would remove invalid link $root/cleanable/stale -> $root/missing.txt
              |""".stripMargin,
         tree = Vector(
@@ -195,7 +195,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("apply clean removes in-base broken links") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-clean-apply-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-clean-apply-")
     val config = root / "install.conf.yaml"
     os.makeDir(root / "cleanable")
     Files.createSymbolicLink(Paths.get((root / "cleanable" / "stale").toString), Paths.get("../missing.txt"))
@@ -212,8 +212,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  Removing invalid link $root/cleanable/stale -> $root/missing.txt
              |""".stripMargin,
         tree = Vector("D cleanable", "F install.conf.yaml"),
@@ -222,7 +221,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("backup link output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-backup-link-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-backup-link-")
     val config = root / "install.conf.yaml"
     os.write(root / "source.txt", "source\n")
     os.write(root / "existing.txt", "old\n")
@@ -237,15 +236,14 @@ class GoldenAppSuite extends munit.FunSuite:
     )
 
     val fixedClock = Clock.fixed(Instant.parse("2024-01-02T03:04:05Z"), ZoneOffset.UTC)
-    val result =
+    val result     =
       run(root, AppOptions(configFiles = Vector(config.toString), noColor = true), AppDependencies(clock = fixedClock))
 
     assertEquals(
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  Backed up file existing.txt to existing.txt.dotbot-backup.20240102-030405
              |step  Creating symlink existing.txt -> $root/source.txt
              |""".stripMargin,
@@ -260,7 +258,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("relink output and symlink state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-relink-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-relink-")
     val config = root / "install.conf.yaml"
     os.write(root / "old.txt", "old\n")
     os.write(root / "source.txt", "source\n")
@@ -280,8 +278,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  Removing linked.txt
              |step  Creating symlink linked.txt -> $root/source.txt
              |""".stripMargin,
@@ -296,7 +293,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("dry run hardlink output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-hardlink-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-hardlink-")
     val config = root / "install.conf.yaml"
     os.write(root / "source.txt", "source\n")
     os.write(
@@ -314,8 +311,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
              |step  Would create hardlink linked.txt -> $root/source.txt
              |""".stripMargin,
         tree = Vector("F install.conf.yaml", "F source.txt"),
@@ -324,7 +320,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("globbed link output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-link-glob-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-link-glob-")
     val config = root / "install.conf.yaml"
     os.makeDir.all(root / "source" / "nested")
     os.write(root / "source" / "nested" / "keep.txt", "keep\n")
@@ -348,8 +344,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  Creating directory $root/linked/p-source/nested
              |step  Creating symlink linked/p-source/nested/keep.txt -> $root/source/nested/keep.txt
              |""".stripMargin,
@@ -369,7 +364,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("dry run shell forms output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-shell-dry-run-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-shell-dry-run-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -387,8 +382,7 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
              |step  Would run command echo plain
              |step  Would run command Pair [echo pair]
              |step  Would run command Mapped [echo mapped]
@@ -399,7 +393,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("failing shell command output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-shell-fail-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-shell-fail-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -414,13 +408,11 @@ class GoldenAppSuite extends munit.FunSuite:
       result,
       GoldenResult(
         exitCode = 1,
-        stdout =
-          s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 1 task(s), 1 config file(s), base $root
              |step  false
              |""".stripMargin,
         tree = Vector("F install.conf.yaml"),
-        stderr =
-          """warn  Command [false] failed
+        stderr = """warn  Command [false] failed
             |error Some commands were not successfully executed
             |error Some tasks were not executed successfully
             |""".stripMargin,
@@ -429,7 +421,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("invalid link type validation output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-link-type-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-link-type-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -454,7 +446,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("unknown directive validation output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-unknown-directive-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-unknown-directive-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -509,7 +501,7 @@ class GoldenAppSuite extends munit.FunSuite:
   }
 
   test("json5 configs are rejected") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-json5-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-json5-")
     val config = root / "install.json5"
     os.write(config, "[]\n")
 
@@ -530,24 +522,24 @@ class GoldenAppSuite extends munit.FunSuite:
    * Captured result of one run. `stdout` and `stderr` are kept apart because dotbot separates
    * them: warnings and errors go to stderr so that they cannot corrupt piped plan output.
    */
-  private final case class GoldenResult(
-    exitCode: Int,
-    stdout:   String,
-    tree:     Vector[String],
-    stderr:   String = "",
+  final private case class GoldenResult(
+      exitCode: Int,
+      stdout: String,
+      tree: Vector[String],
+      stderr: String = "",
   )
 
   private def run(root: os.Path, options: AppOptions, deps: AppDependencies = AppDependencies()): GoldenResult =
     val output = ByteArrayOutputStream()
     val errors = ByteArrayOutputStream()
-    val code = DotbotApp.run(options, PrintStream(output), deps, PrintStream(errors))
+    val code   = DotbotApp.run(options, PrintStream(output), deps, PrintStream(errors))
     GoldenResult(code, output.toString, tree(root), errors.toString)
 
   private def tree(root: os.Path): Vector[String] =
     os.walk(root)
       .filter(_ != root)
       .map { path =>
-        val rel = path.relativeTo(root).toString
+        val rel     = path.relativeTo(root).toString
         val nioPath = Paths.get(path.toString)
         if Files.isSymbolicLink(nioPath) then s"L $rel -> ${Files.readSymbolicLink(nioPath)}"
         else if os.isDir(path) then s"D $rel"

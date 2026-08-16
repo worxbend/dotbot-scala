@@ -10,7 +10,11 @@ import scala.jdk.CollectionConverters.*
 class OsFilesystemSuite extends munit.FunSuite:
   test("permissionsFromMode matches POSIX rwx strings for all low 9-bit modes") {
     for mode <- 0 to FileMode.rwxAll.value do
-      assertEquals(OsFilesystem.permissionsFromMode(FileMode(mode)), permissionsViaString(mode), clue = s"mode ${mode.toOctalString}")
+      assertEquals(
+        OsFilesystem.permissionsFromMode(FileMode(mode)),
+        permissionsViaString(mode),
+        clue = s"mode ${mode.toOctalString}",
+      )
   }
 
   test("permissionsFromMode ignores non-permission bits") {
@@ -33,13 +37,13 @@ class OsFilesystemSuite extends munit.FunSuite:
 object OsFilesystemSuite:
   private val PermissionChars: Vector[(FileMode, Char)] =
     Vector(
-      FileMode.ownerRead -> 'r',
-      FileMode.ownerWrite -> 'w',
-      FileMode.ownerExecute -> 'x',
-      FileMode.groupRead -> 'r',
-      FileMode.groupWrite -> 'w',
-      FileMode.groupExecute -> 'x',
-      FileMode.othersRead -> 'r',
-      FileMode.othersWrite -> 'w',
+      FileMode.ownerRead     -> 'r',
+      FileMode.ownerWrite    -> 'w',
+      FileMode.ownerExecute  -> 'x',
+      FileMode.groupRead     -> 'r',
+      FileMode.groupWrite    -> 'w',
+      FileMode.groupExecute  -> 'x',
+      FileMode.othersRead    -> 'r',
+      FileMode.othersWrite   -> 'w',
       FileMode.othersExecute -> 'x',
     )

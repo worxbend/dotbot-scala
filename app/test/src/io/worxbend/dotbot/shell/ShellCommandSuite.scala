@@ -56,7 +56,7 @@ class ShellCommandSuite extends munit.FunSuite:
   }
 
   test("a timed out command does not leave its children running") {
-    val root = os.temp.dir(prefix = "dotbot-scala-shell-orphan-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-shell-orphan-")
     val marker = root / "orphan.txt"
 
     // The background child outlives the shell that started it, so killing only the shell would

@@ -63,5 +63,5 @@ object ConfigParsers:
           item match
             case ConfigValue.ObjectValue(fields) =>
               Right(Task(fields.map { case (key, data) => Action(Directive.parse(key), data) }))
-            case _ => Left(DotbotError.ConfigTaskNotMapping(path, index + 1))
-          }
+            case _                               => Left(DotbotError.ConfigTaskNotMapping(path, index + 1))
+        }

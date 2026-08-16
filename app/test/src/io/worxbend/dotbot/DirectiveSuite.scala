@@ -32,7 +32,7 @@ class DirectiveSuite extends munit.FunSuite:
     val defaults = DirectiveDefaults.from(
       ConfigValue.ObjectValue(
         Vector(
-          "link" -> ConfigValue.ObjectValue(Vector("create" -> ConfigValue.BoolValue(true))),
+          "link"     -> ConfigValue.ObjectValue(Vector("create" -> ConfigValue.BoolValue(true))),
           "nonsense" -> ConfigValue.ObjectValue(Vector("x" -> ConfigValue.BoolValue(true))),
         ),
       ),

@@ -52,7 +52,7 @@ class InvalidEntrySuite extends munit.FunSuite:
 
   test("one bad entry does not stop the good ones around it") {
     val runtime = TestRuntime()
-    val spec = ShellSpec(
+    val spec    = ShellSpec(
       Vector(
         ShellEntry.Command("echo first", "", quiet = false, stdin = false, stdout = false, stderr = false),
         ShellEntry.Invalid("null"),

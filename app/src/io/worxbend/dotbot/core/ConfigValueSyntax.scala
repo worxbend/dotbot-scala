@@ -17,10 +17,10 @@ extension (value: ConfigValue)
    */
   def describe: String =
     value match
-      case ConfigValue.NullValue          => "null"
-      case ConfigValue.BoolValue(item)    => item.toString
-      case ConfigValue.NumberValue(item)  => item.toString
-      case ConfigValue.StringValue(item)  => s"\"$item\""
-      case ConfigValue.ArrayValue(items)  => items.map(_.describe).mkString("[", ", ", "]")
+      case ConfigValue.NullValue           => "null"
+      case ConfigValue.BoolValue(item)     => item.toString
+      case ConfigValue.NumberValue(item)   => item.toString
+      case ConfigValue.StringValue(item)   => s"\"$item\""
+      case ConfigValue.ArrayValue(items)   => items.map(_.describe).mkString("[", ", ", "]")
       case ConfigValue.ObjectValue(fields) =>
         fields.map { case (key, item) => s"$key: ${item.describe}" }.mkString("{", ", ", "}")

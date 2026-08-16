@@ -13,8 +13,7 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       Right(outcome)
 
   def plan(tasks: Vector[Task]): Either[DotbotError, Plan] =
-    for
-      resolved <- resolvePlan(tasks)
+    for resolved <- resolvePlan(tasks)
     yield Plan(resolved.flatMap(_.plan))
 
   private trait ResolvedAction:
@@ -33,7 +32,7 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
         def execute(ctx: RuntimeContext): Outcome =
           handler.execute(ctx, spec)
 
-  private final case class ResolveState(defaults: DirectiveDefaults, actions: List[ResolvedAction])
+  final private case class ResolveState(defaults: DirectiveDefaults, actions: List[ResolvedAction])
 
   private enum ActionStep:
     case Skip(directive: Directive)
@@ -49,28 +48,28 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       .map(_.actions.reverse.toVector)
 
   private def dispatchAction(
-    outcome:  Outcome,
-    defaults: DirectiveDefaults,
-    action:   Action,
+      outcome: Outcome,
+      defaults: DirectiveDefaults,
+      action: Action,
   )(using boundary.Label[Either[DotbotError, Outcome]]): (Outcome, DirectiveDefaults) =
     actionStep(action) match
-      case ActionStep.Skip(directive) =>
+      case ActionStep.Skip(directive)           =>
         ctx.log.info(s"Skipping action ${directive.label}")
         outcome -> defaults
-      case ActionStep.UpdateDefaults(updated) =>
+      case ActionStep.UpdateDefaults(updated)   =>
         outcome -> updated
       case ActionStep.MissingHandler(directive) =>
         ctx.log.error(s"Action ${directive.label} not handled")
         if ctx.options.exitOnFailure then break(Right(Outcome.Failed): Either[DotbotError, Outcome])
         outcome.combine(Outcome.Failed) -> defaults
-      case ActionStep.Handle(handler) =>
+      case ActionStep.Handle(handler)           =>
         dispatchHandledAction(outcome, defaults, action, handler)
 
   private def dispatchHandledAction(
-    outcome:  Outcome,
-    defaults: DirectiveDefaults,
-    action:   Action,
-    handler:  DirectiveHandler,
+      outcome: Outcome,
+      defaults: DirectiveDefaults,
+      action: Action,
+      handler: DirectiveHandler,
   )(using boundary.Label[Either[DotbotError, Outcome]]): (Outcome, DirectiveDefaults) =
     val directive = action.directive
     if ctx.options.dryRun && !handler.supportsDryRun then
@@ -81,11 +80,11 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       localOutcome match
         case Left(error) if ctx.options.exitOnFailure =>
           break(Left(DotbotError.Execution(directive, error)): Either[DotbotError, Outcome])
-        case Left(error) =>
+        case Left(error)                              =>
           ctx.log.error(s"An error was encountered while executing action ${directive.label}")
           ctx.log.debug(error.render)
           outcome.combine(Outcome.Failed) -> defaults
-        case Right(localOutcome) =>
+        case Right(localOutcome)                      =>
           if !localOutcome.successful && ctx.options.exitOnFailure then
             ctx.log.error(s"Action ${directive.label} failed")
             break(Right(Outcome.Failed): Either[DotbotError, Outcome])
@@ -93,15 +92,15 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
 
   private def resolvePlanAction(state: ResolveState, action: Action): Either[DotbotError, ResolveState] =
     actionStep(action) match
-      case ActionStep.Skip(_) =>
+      case ActionStep.Skip(_)                   =>
         Right(state)
-      case ActionStep.UpdateDefaults(defaults) =>
+      case ActionStep.UpdateDefaults(defaults)  =>
         Right(state.copy(defaults = defaults))
       case ActionStep.MissingHandler(directive) =>
         Left(DotbotError.ActionNotHandled(directive))
-      case ActionStep.Handle(handler) =>
-        resolveAction(handler, action.data, state.defaults, DecodeMode.Validate)
-          .left.map(error => DotbotError.Validation(action.directive, error))
+      case ActionStep.Handle(handler)           =>
+        resolveAction(handler, action.data, state.defaults, DecodeMode.Validate).left
+          .map(error => DotbotError.Validation(action.directive, error))
           .map(action => state.copy(actions = action :: state.actions))
 
   private def actionStep(action: Action): ActionStep =
@@ -110,16 +109,16 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
     else
       directive match
         case Directive.Defaults => ActionStep.UpdateDefaults(DirectiveDefaults.from(action.data))
-        case _ =>
+        case _                  =>
           handlerFor(directive) match
             case None          => ActionStep.MissingHandler(directive)
             case Some(handler) => ActionStep.Handle(handler)
 
   private def resolveAction(
-    handler:  DirectiveHandler,
-    data:     ConfigValue,
-    defaults: DirectiveDefaults,
-    mode:     DecodeMode,
+      handler: DirectiveHandler,
+      data: ConfigValue,
+      defaults: DirectiveDefaults,
+      mode: DecodeMode,
   ): Either[DotbotError, ResolvedAction] =
     handler.decode(data, defaults, mode).map(spec => ResolvedAction(handler)(spec))
 

@@ -10,20 +10,20 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
   override def plan(spec: CreateSpec): Vector[Operation] =
     spec.entries.collect { case CreateEntry.Path(path, _) => Operation(Directive.Create, path) }
 
-  override protected def entries(spec: CreateSpec): Vector[CreateEntry] =
+  protected override def entries(spec: CreateSpec): Vector[CreateEntry] =
     spec.entries
 
-  override protected def executeEntry(ctx: RuntimeContext, entry: CreateEntry): Outcome =
+  protected override def executeEntry(ctx: RuntimeContext, entry: CreateEntry): Outcome =
     entry match
-      case CreateEntry.Path(path, mode) => createPath(ctx, path, mode)
+      case CreateEntry.Path(path, mode)     => createPath(ctx, path, mode)
       case CreateEntry.Invalid(description) =>
         ctx.log.warning(s"Skipping create entry that is not a path: $description")
         Outcome.Failed
 
-  override protected def allSuccessfulMessage: String =
+  protected override def allSuccessfulMessage: String =
     "All paths have been set up"
 
-  override protected def someFailedMessage: String =
+  protected override def someFailedMessage: String =
     "Some paths were not successfully set up"
 
   private def createPath(ctx: RuntimeContext, path: String, mode: FileMode): Outcome =
@@ -36,6 +36,8 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
       Outcome.Ok
     else
       ctx.log.action(s"Creating path $absolute")
-      if ctx.withFilesystem(ctx.fs.mkdirAll(absolute), _ => s"Failed to create path $absolute").isEmpty then Outcome.Failed
-      else if ctx.withFilesystem(ctx.fs.chmod(absolute, mode), _ => s"Failed to set mode for path $absolute").isEmpty then Outcome.Failed
+      if ctx.withFilesystem(ctx.fs.mkdirAll(absolute), _ => s"Failed to create path $absolute").isEmpty then
+        Outcome.Failed
+      else if ctx.withFilesystem(ctx.fs.chmod(absolute, mode), _ => s"Failed to set mode for path $absolute").isEmpty
+      then Outcome.Failed
       else Outcome.Ok

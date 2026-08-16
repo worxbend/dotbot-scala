@@ -10,18 +10,18 @@ import java.io.PrintStream
 /**
  * Loaded and validated configuration payload shared by command execution.
  */
-private[app] final case class LoadedConfig(tasks: Vector[Task], base: String)
+final private[app] case class LoadedConfig(tasks: Vector[Task], base: String)
 
 /**
  * Shared execution context for command handlers.
  */
-private[app] final case class AppCommandContext(
-  options:    AppOptions,
-  stdout:     PrintStream,
-  logger:     Logger,
-  interpreter: Interpreter,
-  loaded:     LoadedConfig,
-  stylishUi:  Boolean,
+final private[app] case class AppCommandContext(
+    options: AppOptions,
+    stdout: PrintStream,
+    logger: Logger,
+    interpreter: Interpreter,
+    loaded: LoadedConfig,
+    stylishUi: Boolean,
 )
 
 /**
@@ -38,9 +38,9 @@ private[app] enum AppCommand:
    */
   def execute(ctx: AppCommandContext): Int =
     this match
-      case AppCommand.Apply                   => applyConfig(ctx)
-      case AppCommand.Validate                => validateConfig(ctx)
-      case AppCommand.Plan(format)            => printPlan(ctx, format)
+      case AppCommand.Apply                    => applyConfig(ctx)
+      case AppCommand.Validate                 => validateConfig(ctx)
+      case AppCommand.Plan(format)             => printPlan(ctx, format)
       case AppCommand.InvalidPlanOutput(value) => invalidPlanOutput(ctx, value)
 
   private def applyConfig(ctx: AppCommandContext): Int =
@@ -49,13 +49,13 @@ private[app] enum AppCommand:
       s"Starting $mode with ${ctx.loaded.tasks.size} task(s), ${ctx.options.configFiles.size} config file(s), base ${ctx.loaded.base}",
     )
     ctx.interpreter.dispatch(ctx.loaded.tasks) match
-      case Left(error) =>
+      case Left(error)                          =>
         ctx.logger.error(error.render)
         1
       case Right(outcome) if outcome.successful =>
         ctx.logger.info("All tasks executed successfully")
         0
-      case Right(_) =>
+      case Right(_)                             =>
         ctx.logger.error("Some tasks were not executed successfully")
         1
 

@@ -29,7 +29,7 @@ class GoldenCliSuite extends munit.FunSuite:
   }
 
   test("root config and subcommand options merge for json plan") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-cli-plan-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-cli-plan-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -46,8 +46,7 @@ class GoldenCliSuite extends munit.FunSuite:
       result,
       GoldenCliResult(
         exitCode = 0,
-        stdout =
-          s"""{
+        stdout = s"""{
              |  "task_count": 2,
              |  "config_file_count": 1,
              |  "operation_count": 2,
@@ -73,7 +72,7 @@ class GoldenCliSuite extends munit.FunSuite:
   }
 
   test("invalid plan output format is reported after planning") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-cli-plan-output-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-cli-plan-output-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -96,7 +95,7 @@ class GoldenCliSuite extends munit.FunSuite:
   }
 
   test("verbose short flag cluster output is stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-cli-verbose-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-cli-verbose-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -111,8 +110,7 @@ class GoldenCliSuite extends munit.FunSuite:
       result,
       GoldenCliResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting dry-run with 1 task(s), 1 config file(s), base $root
              |step  Would create path $root/generated
              |info  All paths have been set up
              |info  All tasks executed successfully
@@ -124,7 +122,7 @@ class GoldenCliSuite extends munit.FunSuite:
   }
 
   test("only filter output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-cli-only-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-cli-only-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -141,8 +139,7 @@ class GoldenCliSuite extends munit.FunSuite:
       result,
       GoldenCliResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 2 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 2 task(s), 1 config file(s), base $root
              |step  Creating path $root/generated
              |""".stripMargin,
         stderr = "",
@@ -152,7 +149,7 @@ class GoldenCliSuite extends munit.FunSuite:
   }
 
   test("except filter output and filesystem state are stable") {
-    val root = os.temp.dir(prefix = "dotbot-scala-golden-cli-except-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-golden-cli-except-")
     val config = root / "install.conf.yaml"
     os.write(
       config,
@@ -169,8 +166,7 @@ class GoldenCliSuite extends munit.FunSuite:
       result,
       GoldenCliResult(
         exitCode = 0,
-        stdout =
-          s"""step  Starting apply with 2 task(s), 1 config file(s), base $root
+        stdout = s"""step  Starting apply with 2 task(s), 1 config file(s), base $root
              |step  Creating path $root/generated
              |""".stripMargin,
         stderr = "",
@@ -179,19 +175,19 @@ class GoldenCliSuite extends munit.FunSuite:
     )
   }
 
-  private final case class GoldenCliResult(exitCode: Int, stdout: String, stderr: String, tree: Vector[String])
+  final private case class GoldenCliResult(exitCode: Int, stdout: String, stderr: String, tree: Vector[String])
 
   private def run(root: os.Path, args: Array[String]): GoldenCliResult =
     val stdout = ByteArrayOutputStream()
     val stderr = ByteArrayOutputStream()
-    val code = Cli.execute(args, PrintStream(stdout), PrintStream(stderr))
+    val code   = Cli.execute(args, PrintStream(stdout), PrintStream(stderr))
     GoldenCliResult(code, stdout.toString, stderr.toString, tree(root))
 
   private def tree(root: os.Path): Vector[String] =
     os.walk(root)
       .filter(_ != root)
       .map { path =>
-        val rel = path.relativeTo(root).toString
+        val rel     = path.relativeTo(root).toString
         val nioPath = Paths.get(path.toString)
         if Files.isSymbolicLink(nioPath) then s"L $rel -> ${Files.readSymbolicLink(nioPath)}"
         else if os.isDir(path) then s"D $rel"

@@ -12,8 +12,8 @@ class EitherUtilSuite extends munit.FunSuite:
   test("traverse returns the first error and stops evaluating later items") {
     val result = EitherUtil.traverse(Vector(1, 2, 3)) { item =>
       item match
-        case 1 => Right(item)
-        case 2 => Left("boom")
+        case 1          => Right(item)
+        case 2          => Left("boom")
         case unexpected => fail(s"visited item after first error: $unexpected")
     }
 

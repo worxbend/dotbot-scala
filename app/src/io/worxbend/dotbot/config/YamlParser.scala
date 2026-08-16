@@ -22,7 +22,7 @@ private[config] object YamlParser:
 
   private def fromYaml(node: Node): ConfigValue =
     node match
-      case scalar: Node.ScalarNode =>
+      case scalar: Node.ScalarNode     =>
         scalar.tag match
           case Tag.nullTag => ConfigValue.NullValue
           case Tag.boolean => ConfigValue.BoolValue(scalar.value.equalsIgnoreCase("true"))
@@ -31,26 +31,26 @@ private[config] object YamlParser:
           case _           => ConfigValue.StringValue(scalar.value)
       case sequence: Node.SequenceNode =>
         ConfigValue.ArrayValue(sequence.nodes.toVector.map(fromYaml))
-      case mapping: Node.MappingNode =>
+      case mapping: Node.MappingNode   =>
         ConfigValue.ObjectValue(
           mapping.mappings.toVector.map { case (key, value) => yamlKey(key) -> fromYaml(value) },
         )
-  
+
   private def yamlKey(node: Node): String =
     node match
       case scalar: Node.ScalarNode => scalar.value
       case other                   => fromYaml(other).toString
-  
+
   private def yamlInt(value: String): BigDecimal =
-    val normalized = value.replace("_", "")
+    val normalized       = value.replace("_", "")
     val (sign, unsigned) =
       if normalized.startsWith("-") then -1 -> normalized.drop(1)
       else if normalized.startsWith("+") then 1 -> normalized.drop(1)
-      else 1 -> normalized
-  
+      else 1                                    -> normalized
+
     val parsed =
       if unsigned.startsWith("0x") then BigInt(unsigned.drop(2), 16)
       else if unsigned.startsWith("0o") then BigInt(unsigned.drop(2), 8)
       else BigInt(unsigned)
-  
+
     BigDecimal(parsed * sign)

@@ -23,7 +23,7 @@ class DirectiveDecoderSuite extends munit.FunSuite:
   test("directive defaults parse raw labels into typed sections") {
     val defaults = DirectiveDefaults.from(
       obj(
-        "create" -> obj("mode" -> str("700")),
+        "create"  -> obj("mode" -> str("700")),
         "unknown" -> obj("mode" -> str("600")),
       ),
     )
@@ -51,7 +51,7 @@ class DirectiveDecoderSuite extends munit.FunSuite:
     val decoded = summon[ConfigDecoder[CreateSpec]]
       .decode(
         obj(
-          "bin" -> ConfigValue.NullValue,
+          "bin"   -> ConfigValue.NullValue,
           "cache" -> obj("mode" -> str("700")),
         ),
         DirectiveDefaults(Map(Directive.Create -> obj("mode" -> str("755")))),
@@ -81,13 +81,13 @@ class DirectiveDecoderSuite extends munit.FunSuite:
     val decoded = summon[ConfigDecoder[CleanSpec]]
       .decode(
         obj(
-          "logs" -> ConfigValue.NullValue,
+          "logs"  -> ConfigValue.NullValue,
           "cache" -> obj("force" -> bool(false)),
         ),
         DirectiveDefaults(
           Map(
             Directive.Clean -> obj(
-              "force" -> bool(true),
+              "force"     -> bool(true),
               "recursive" -> bool(true),
             ),
           ),
@@ -152,7 +152,7 @@ class DirectiveDecoderSuite extends munit.FunSuite:
     val decoded = summon[ConfigDecoder[LinkSpec]]
       .decode(
         obj(
-          "~/.vimrc" -> ConfigValue.NullValue,
+          "~/.vimrc"       -> ConfigValue.NullValue,
           "~/.config/nvim" -> obj("path" -> ConfigValue.NullValue),
         ),
         DirectiveDefaults.empty,
@@ -178,18 +178,18 @@ class DirectiveDecoderSuite extends munit.FunSuite:
       .decode(
         obj(
           "~/.tmux.conf" -> str("tmux.conf"),
-          "~/.vimrc" -> obj(
-            "path" -> str("vimrc"),
+          "~/.vimrc"     -> obj(
+            "path"     -> str("vimrc"),
             "relative" -> bool(false),
-            "type" -> str("symlink"),
+            "type"     -> str("symlink"),
           ),
         ),
         DirectiveDefaults(
           Map(
             Directive.Link -> obj(
-              "create" -> bool(true),
+              "create"   -> bool(true),
               "relative" -> bool(true),
-              "type" -> str("hardlink"),
+              "type"     -> str("hardlink"),
             ),
           ),
         ),
@@ -220,7 +220,10 @@ class DirectiveDecoderSuite extends munit.FunSuite:
 
   test("shell decoder reports strict shape and command errors") {
     assertDecodeError[ShellSpec](str("echo hi"), "shell directive must be a list")
-    assertDecodeError[ShellSpec](arr(obj("description" -> str("missing"))), "shell directive item must include a command")
+    assertDecodeError[ShellSpec](
+      arr(obj("description" -> str("missing"))),
+      "shell directive item must include a command",
+    )
     assertDecodeError[ShellSpec](arr(arr(bool(true), str("message"))), "shell directive item must include a command")
   }
 
@@ -230,16 +233,16 @@ class DirectiveDecoderSuite extends munit.FunSuite:
         arr(
           str("echo inherited"),
           obj(
-            "command" -> str("echo local"),
+            "command"     -> str("echo local"),
             "description" -> str("Local command"),
-            "quiet" -> bool(false),
-            "stderr" -> bool(true),
+            "quiet"       -> bool(false),
+            "stderr"      -> bool(true),
           ),
         ),
         DirectiveDefaults(
           Map(
             Directive.Shell -> obj(
-              "quiet" -> bool(true),
+              "quiet"  -> bool(true),
               "stdout" -> bool(true),
             ),
           ),
@@ -290,7 +293,11 @@ class DirectiveDecoderSuite extends munit.FunSuite:
     )
     assertEquals(
       summon[ConfigDecoder[LinkSpec]]
-        .decode(obj("~/.vimrc" -> obj("path" -> str("vimrc"), "type" -> str("copy"))), DirectiveDefaults.empty, DecodeMode.Execute),
+        .decode(
+          obj("~/.vimrc" -> obj("path" -> str("vimrc"), "type" -> str("copy"))),
+          DirectiveDefaults.empty,
+          DecodeMode.Execute,
+        ),
       Right(LinkSpec(None, Vector(LinkEntry.InvalidLinkType(UnknownLinkType("copy"))))),
     )
     assertEquals(
@@ -305,9 +312,9 @@ class DirectiveDecoderSuite extends munit.FunSuite:
   }
 
   private def assertDecodeError[A](
-    value:    ConfigValue,
-    message:  String,
-    defaults: DirectiveDefaults = DirectiveDefaults.empty,
+      value: ConfigValue,
+      message: String,
+      defaults: DirectiveDefaults = DirectiveDefaults.empty,
   )(using decoder: ConfigDecoder[A]): Unit =
     assertEquals(decoder.decode(value, defaults, DecodeMode.Validate).left.map(_.render), Left(message))
 

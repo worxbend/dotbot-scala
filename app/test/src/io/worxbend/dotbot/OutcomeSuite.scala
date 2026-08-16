@@ -12,7 +12,7 @@ class OutcomeSuite extends munit.FunSuite:
   }
 
   test("withSummary logs the matching summary and preserves the outcome") {
-    val okRuntime = TestRuntime()
+    val okRuntime     = TestRuntime()
     val failedRuntime = TestRuntime()
 
     assertEquals(Outcome.Ok.withSummary(okRuntime.ctx.log, "all good", "failed"), Outcome.Ok)

@@ -105,13 +105,13 @@ object OsFilesystem extends Filesystem:
 
   private val PermissionBits: Vector[(Int, PosixFilePermission)] =
     Vector(
-      FileMode.ownerRead.value -> PosixFilePermission.OWNER_READ,
-      FileMode.ownerWrite.value -> PosixFilePermission.OWNER_WRITE,
-      FileMode.ownerExecute.value -> PosixFilePermission.OWNER_EXECUTE,
-      FileMode.groupRead.value -> PosixFilePermission.GROUP_READ,
-      FileMode.groupWrite.value -> PosixFilePermission.GROUP_WRITE,
-      FileMode.groupExecute.value -> PosixFilePermission.GROUP_EXECUTE,
-      FileMode.othersRead.value -> PosixFilePermission.OTHERS_READ,
-      FileMode.othersWrite.value -> PosixFilePermission.OTHERS_WRITE,
+      FileMode.ownerRead.value     -> PosixFilePermission.OWNER_READ,
+      FileMode.ownerWrite.value    -> PosixFilePermission.OWNER_WRITE,
+      FileMode.ownerExecute.value  -> PosixFilePermission.OWNER_EXECUTE,
+      FileMode.groupRead.value     -> PosixFilePermission.GROUP_READ,
+      FileMode.groupWrite.value    -> PosixFilePermission.GROUP_WRITE,
+      FileMode.groupExecute.value  -> PosixFilePermission.GROUP_EXECUTE,
+      FileMode.othersRead.value    -> PosixFilePermission.OTHERS_READ,
+      FileMode.othersWrite.value   -> PosixFilePermission.OTHERS_WRITE,
       FileMode.othersExecute.value -> PosixFilePermission.OTHERS_EXECUTE,
     )

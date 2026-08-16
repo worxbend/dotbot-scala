@@ -14,7 +14,7 @@ object ConfigDecoder:
     Left(decodeError(message))
 
   def instance[A](
-    decodeValue: (ConfigValue, DirectiveDefaults, DecodeMode) => Either[DotbotError, A],
+      decodeValue: (ConfigValue, DirectiveDefaults, DecodeMode) => Either[DotbotError, A],
   ): ConfigDecoder[A] =
     new ConfigDecoder[A]:
       def decode(value: ConfigValue, defaults: DirectiveDefaults, mode: DecodeMode): Either[DotbotError, A] =
@@ -31,31 +31,31 @@ object ConfigDecoder:
     value.asFields.toRight(decodeError(message))
 
   def fieldsOrList[A](
-    value:   ConfigValue,
-    message: String,
+      value: ConfigValue,
+      message: String,
   )(
-    decodeFields: ConfigFields => Either[DotbotError, A],
-    decodeList:   Vector[ConfigValue] => Either[DotbotError, A],
+      decodeFields: ConfigFields => Either[DotbotError, A],
+      decodeList: Vector[ConfigValue] => Either[DotbotError, A],
   ): Either[DotbotError, A] =
     value.asFields match
       case Some(fields) => decodeFields(fields)
-      case None =>
+      case None         =>
         value.asArray match
           case Some(items) => decodeList(items)
           case None        => fail(message)
 
   def field[A](
-    values:  Map[String, ConfigValue],
-    name:    String,
-    missing: String,
+      values: Map[String, ConfigValue],
+      name: String,
+      missing: String,
   )(decode: ConfigValue => Either[DotbotError, A]): Either[DotbotError, A] =
     values.get(name) match
       case Some(value) => decode(value)
       case None        => fail(missing)
 
   def optional[A](
-    values: Map[String, ConfigValue],
-    name:   String,
+      values: Map[String, ConfigValue],
+      name: String,
   )(decode: ConfigValue => Either[DotbotError, A]): Either[DotbotError, Option[A]] =
     values.get(name) match
       case Some(value) => decode(value).map(Some(_))

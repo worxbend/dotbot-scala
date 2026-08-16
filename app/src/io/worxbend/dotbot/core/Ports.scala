@@ -31,6 +31,7 @@ trait Filesystem:
    * touches a real disk — on the outside, so that pattern matching stays testable against a fake.
    */
   def walk(root: String, maxDepth: Int): Either[Throwable, Vector[String]]
+
   /**
    * Create a directory and any missing parents.
    *
@@ -51,11 +52,11 @@ trait Filesystem:
   def hardlink(target: String, link: String): Either[Throwable, Unit]
 
 final case class ShellOptions(
-  cwd:          String,
-  enableStdin:  Boolean = false,
-  enableStdout: Boolean = false,
-  enableStderr: Boolean = false,
-  timeout:      Duration = Duration.ofMinutes(10),
+    cwd: String,
+    enableStdin: Boolean = false,
+    enableStdout: Boolean = false,
+    enableStderr: Boolean = false,
+    timeout: Duration = Duration.ofMinutes(10),
 )
 
 enum ShellExit:

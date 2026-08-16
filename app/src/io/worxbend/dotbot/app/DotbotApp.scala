@@ -38,32 +38,32 @@ import java.time.Duration
  * @param mode execution mode: apply, validate, or plan.
  */
 final case class AppOptions(
-  quiet:         Boolean = false,
-  verbose:       Int = 0,
-  baseDirectory: String = "",
-  configFiles:   Vector[String] = Vector.empty,
-  only:          Set[Directive] = Set.empty,
-  skip:          Set[Directive] = Set.empty,
-  dryRun:        Boolean = false,
-  forceColor:    Boolean = false,
-  noColor:       Boolean = false,
-  forceEmoji:    Boolean = false,
-  noEmoji:       Boolean = false,
-  exitOnFailure: Boolean = false,
-  shellTimeout:  Duration = CoreOptions().shellTimeout,
-  mode:          RunMode = RunMode.Apply,
+    quiet: Boolean = false,
+    verbose: Int = 0,
+    baseDirectory: String = "",
+    configFiles: Vector[String] = Vector.empty,
+    only: Set[Directive] = Set.empty,
+    skip: Set[Directive] = Set.empty,
+    dryRun: Boolean = false,
+    forceColor: Boolean = false,
+    noColor: Boolean = false,
+    forceEmoji: Boolean = false,
+    noEmoji: Boolean = false,
+    exitOnFailure: Boolean = false,
+    shellTimeout: Duration = CoreOptions().shellTimeout,
+    mode: RunMode = RunMode.Apply,
 )
 
 /**
  * Overridable runtime dependencies for composition/testing.
  */
 final case class AppDependencies(
-  reader:       ConfigReader = ConfigReader(),
-  fs:           Filesystem = OsFilesystem,
-  shell:        ShellRunner = OsShellRunner,
-  clock:        Clock = Clock.systemDefaultZone(),
-  paths:        PathResolver = PathResolver.system,
-  capabilities: TerminalCapabilities = TerminalCapabilities.detect,
+    reader: ConfigReader = ConfigReader(),
+    fs: Filesystem = OsFilesystem,
+    shell: ShellRunner = OsShellRunner,
+    clock: Clock = Clock.systemDefaultZone(),
+    paths: PathResolver = PathResolver.system,
+    capabilities: TerminalCapabilities = TerminalCapabilities.detect,
 )
 
 /**
@@ -78,10 +78,10 @@ object DotbotApp:
    * @return process exit code.
    */
   def run(
-    options: AppOptions,
-    stdout:  PrintStream = System.out,
-    deps:    AppDependencies = AppDependencies(),
-    stderr:  PrintStream = System.err,
+      options: AppOptions,
+      stdout: PrintStream = System.out,
+      deps: AppDependencies = AppDependencies(),
+      stderr: PrintStream = System.err,
   ): Int =
     val logger = loggerFor(stdout, stderr, options, deps.capabilities)
     load(options, deps, logger) match
@@ -90,10 +90,10 @@ object DotbotApp:
 
   private def load(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, LoadedConfig] =
     for
-      _ <- validateStartupOptions(options, logger)
+      _     <- validateStartupOptions(options, logger)
       tasks <- readTasks(options, deps, logger)
-      _ = warnIfNoTasks(options, tasks, logger)
-      base <- resolveBaseDirectory(options, deps, logger)
+      _      = warnIfNoTasks(options, tasks, logger)
+      base  <- resolveBaseDirectory(options, deps, logger)
     yield LoadedConfig(tasks, base)
 
   private def validateStartupOptions(options: AppOptions, logger: Logger): Either[Int, Unit] =
@@ -110,7 +110,7 @@ object DotbotApp:
 
   private def readTasks(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, Vector[Task]] =
     deps.reader.read(options.configFiles) match
-      case Left(error) =>
+      case Left(error)  =>
         logger.error(error.render)
         Left(1)
       case Right(tasks) => Right(tasks)
@@ -128,25 +128,25 @@ object DotbotApp:
       case Left(error) =>
         logger.error(s"nonexistent base directory: ${error.getMessage}")
         Left(1)
-      case Right(_) => Right(base)
+      case Right(_)    => Right(base)
 
   private def execute(
-    options: AppOptions,
-    stdout:  PrintStream,
-    deps:    AppDependencies,
-    logger:  Logger,
-    loaded:  LoadedConfig,
+      options: AppOptions,
+      stdout: PrintStream,
+      deps: AppDependencies,
+      logger: Logger,
+      loaded: LoadedConfig,
   ): Int =
-    val stylish = symbolsEnabled(options, deps.capabilities)
+    val stylish     = symbolsEnabled(options, deps.capabilities)
     val interpreter = Wiring.interpreter(loaded.base, options, logger, deps)
-    val context = AppCommandContext(options, stdout, logger, interpreter, loaded, stylish)
+    val context     = AppCommandContext(options, stdout, logger, interpreter, loaded, stylish)
     AppCommand.from(options.mode).execute(context)
 
   private def loggerFor(
-    stdout:       PrintStream,
-    stderr:       PrintStream,
-    options:      AppOptions,
-    capabilities: TerminalCapabilities,
+      stdout: PrintStream,
+      stderr: PrintStream,
+      options: AppOptions,
+      capabilities: TerminalCapabilities,
   ): Logger =
     Logger.split(stdout, stderr, minimumLevel(options), effectiveCapabilities(options, capabilities))
 

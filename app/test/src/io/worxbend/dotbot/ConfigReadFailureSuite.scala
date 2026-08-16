@@ -15,7 +15,7 @@ class ConfigReadFailureSuite extends munit.FunSuite:
     result match
       case Left(DotbotError.ConfigReadFailed(path, _)) =>
         assertEquals(path, "/definitely/absent/install.conf.yaml")
-      case other => fail(s"expected a read failure, got $other")
+      case other                                       => fail(s"expected a read failure, got $other")
   }
 
   test("an unsupported extension is rejected by name") {
@@ -39,7 +39,7 @@ class ConfigReadFailureSuite extends munit.FunSuite:
       case Left(error @ DotbotError.ConfigParseFailed(reported, _)) =>
         assertEquals(reported, path.toString)
         assert(error.render.startsWith(s"could not parse config file \"$path\": "))
-      case other => fail(s"expected a parse failure, got $other")
+      case other                                                    => fail(s"expected a parse failure, got $other")
   }
 
   test("a config whose root is not a task list is rejected") {
@@ -86,7 +86,7 @@ class ConfigReadFailureSuite extends munit.FunSuite:
   }
 
   test("a config path may itself contain a variable and a tilde") {
-    val root = os.temp.dir(prefix = "dotbot-scala-path-expansion-")
+    val root   = os.temp.dir(prefix = "dotbot-scala-path-expansion-")
     os.write(root / "install.conf.yaml", "- create: [\"one\"]\n")
     val reader = ConfigReader(TestEnvironment.resolver(Map("DOTFILES" -> root.toString)))
 

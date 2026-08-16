@@ -16,7 +16,7 @@ enum ConfigValue:
   def asBoolean: Option[Boolean] =
     this match
       case ConfigValue.BoolValue(value) => Some(value)
-      case _                           => None
+      case _                            => None
 
   def asArray: Option[Vector[ConfigValue]] =
     this match

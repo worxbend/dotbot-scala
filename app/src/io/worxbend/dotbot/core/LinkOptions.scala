@@ -1,7 +1,7 @@
 package io.worxbend.dotbot.core
 
 enum LinkType(val label: String):
-  case Symlink extends LinkType("symlink")
+  case Symlink  extends LinkType("symlink")
   case Hardlink extends LinkType("hardlink")
 
 object LinkType:
@@ -15,18 +15,18 @@ final case class UnknownLinkType(value: String):
   def render: String = value
 
 final case class LinkOptions(
-  relative:      Boolean = false,
-  canonicalize:  Boolean = true,
-  linkType:      LinkType = LinkType.Symlink,
-  force:         Boolean = false,
-  relink:        Boolean = false,
-  create:        Boolean = false,
-  glob:          Boolean = false,
-  backup:        Boolean = false,
-  prefix:        String = "",
-  ifCommand:     String = "",
-  ignoreMissing: Boolean = false,
-  exclude:       Vector[String] = Vector.empty,
+    relative: Boolean = false,
+    canonicalize: Boolean = true,
+    linkType: LinkType = LinkType.Symlink,
+    force: Boolean = false,
+    relink: Boolean = false,
+    create: Boolean = false,
+    glob: Boolean = false,
+    backup: Boolean = false,
+    prefix: String = "",
+    ifCommand: String = "",
+    ignoreMissing: Boolean = false,
+    exclude: Vector[String] = Vector.empty,
 )
 
 object LinkOptions:
@@ -35,7 +35,9 @@ object LinkOptions:
 
   def merge(options: LinkOptions, values: Map[String, ConfigValue]): Either[UnknownLinkType, LinkOptions] =
     val canonical =
-      values.get("canonicalize").flatMap(_.asBoolean)
+      values
+        .get("canonicalize")
+        .flatMap(_.asBoolean)
         .orElse(values.get("canonicalize-path").flatMap(_.asBoolean))
         .getOrElse(options.canonicalize)
 

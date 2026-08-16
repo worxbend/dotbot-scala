@@ -34,7 +34,13 @@ object Glob:
 
   private def doubleStarGlob(fs: Filesystem, pattern: String): Either[DotbotError, Vector[String]] =
     // `**` matches any number of directories, so there is no depth to stop at.
-    walkMatches(fs, pattern, staticRoot(pattern.take(pattern.indexOf("**"))), Int.MaxValue, includeDoubleStarMatch(fs, pattern, _))
+    walkMatches(
+      fs,
+      pattern,
+      staticRoot(pattern.take(pattern.indexOf("**"))),
+      Int.MaxValue,
+      includeDoubleStarMatch(fs, pattern, _),
+    )
 
   /**
    * How deep below the static root a match could possibly be.
@@ -46,17 +52,17 @@ object Glob:
    * that could never match at that depth. Handing the depth to the walk prunes it.
    */
   private[core] def depthLimit(pattern: String): Int =
-    val root = staticRoot(pattern)
-    val rootDepth = if root == "." || root == "/" then 0 else root.count(_ == '/') + 1
+    val root         = staticRoot(pattern)
+    val rootDepth    = if root == "." || root == "/" then 0 else root.count(_ == '/') + 1
     val patternDepth = pattern.count(_ == '/') + 1
     math.max(patternDepth - rootDepth, 1)
 
   private def walkMatches(
-    fs:          Filesystem,
-    pattern:     String,
-    root:        String,
-    maxDepth:    Int,
-    includePath: String => Boolean,
+      fs: Filesystem,
+      pattern: String,
+      root: String,
+      maxDepth: Int,
+      includePath: String => Boolean,
   ): Either[DotbotError, Vector[String]] =
     val matcher = FileSystems.getDefault.getPathMatcher(s"glob:$pattern")
     fs.walk(root, maxDepth)
@@ -69,10 +75,10 @@ object Glob:
     !fs.isDir(path) || pattern.endsWith("/")
 
   private[core] def staticRoot(pattern: String): String =
-    val idx = pattern.indexWhere(ch => ch == '?' || ch == '*' || ch == '[')
+    val idx    = pattern.indexWhere(ch => ch == '?' || ch == '*' || ch == '[')
     val prefix = if idx < 0 then pattern else pattern.take(idx)
-    val slash = prefix.lastIndexOf('/')
-    val root = if slash >= 0 then prefix.take(slash) else "."
+    val slash  = prefix.lastIndexOf('/')
+    val root   = if slash >= 0 then prefix.take(slash) else "."
     if root.isEmpty then "/" else root
 
   private def commonPrefix(a: String, b: String): String =

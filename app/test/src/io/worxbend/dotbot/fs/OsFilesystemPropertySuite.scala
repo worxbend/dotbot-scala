@@ -10,7 +10,10 @@ class OsFilesystemPropertySuite extends munit.ScalaCheckSuite:
 
   property("permissionsFromMode maps each low 9-bit mode directly to POSIX permissions") {
     forAll(Mode) { mode =>
-      assertEquals(OsFilesystem.permissionsFromMode(FileMode(mode)), OsFilesystemPropertySuite.expectedPermissions(mode))
+      assertEquals(
+        OsFilesystem.permissionsFromMode(FileMode(mode)),
+        OsFilesystemPropertySuite.expectedPermissions(mode),
+      )
     }
   }
 
@@ -24,13 +27,13 @@ object OsFilesystemPropertySuite:
 
   private val PermissionBits: Vector[(Int, PosixFilePermission)] =
     Vector(
-      FileMode.ownerRead.value -> PosixFilePermission.OWNER_READ,
-      FileMode.ownerWrite.value -> PosixFilePermission.OWNER_WRITE,
-      FileMode.ownerExecute.value -> PosixFilePermission.OWNER_EXECUTE,
-      FileMode.groupRead.value -> PosixFilePermission.GROUP_READ,
-      FileMode.groupWrite.value -> PosixFilePermission.GROUP_WRITE,
-      FileMode.groupExecute.value -> PosixFilePermission.GROUP_EXECUTE,
-      FileMode.othersRead.value -> PosixFilePermission.OTHERS_READ,
-      FileMode.othersWrite.value -> PosixFilePermission.OTHERS_WRITE,
+      FileMode.ownerRead.value     -> PosixFilePermission.OWNER_READ,
+      FileMode.ownerWrite.value    -> PosixFilePermission.OWNER_WRITE,
+      FileMode.ownerExecute.value  -> PosixFilePermission.OWNER_EXECUTE,
+      FileMode.groupRead.value     -> PosixFilePermission.GROUP_READ,
+      FileMode.groupWrite.value    -> PosixFilePermission.GROUP_WRITE,
+      FileMode.groupExecute.value  -> PosixFilePermission.GROUP_EXECUTE,
+      FileMode.othersRead.value    -> PosixFilePermission.OTHERS_READ,
+      FileMode.othersWrite.value   -> PosixFilePermission.OTHERS_WRITE,
       FileMode.othersExecute.value -> PosixFilePermission.OTHERS_EXECUTE,
     )
