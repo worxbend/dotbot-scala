@@ -22,6 +22,15 @@ object DotbotError:
   final case class ConfigReadFailed(path: String, detail: String) extends DotbotError:
     def render: String = s"could not read config file \"$path\": $detail"
 
+  /**
+   * A config file was read but its text could not be parsed.
+   *
+   * The path is part of the message because `-c` accepts several config files, and a parser's own
+   * message says only what is wrong, never which file it was reading.
+   */
+  final case class ConfigParseFailed(path: String, detail: String) extends DotbotError:
+    def render: String = s"could not parse config file \"$path\": $detail"
+
   final case class UnsupportedConfigFormat(extension: String) extends DotbotError:
     def render: String = s"unsupported config file format .$extension"
 

@@ -34,11 +34,18 @@ object ConfigParsers:
     case Toml
 
     def parse(path: String, data: String): Either[DotbotError, ConfigValue] =
-      this match
-        case Yaml  => parseYaml(data)
-        case Hocon => parseHocon(data, path)
-        case Json  => parseJson(data)
-        case Toml  => parseToml(data)
+      val parsed =
+        this match
+          case Yaml  => parseYaml(data)
+          case Hocon => parseHocon(data, path)
+          case Json  => parseJson(data)
+          case Toml  => parseToml(data)
+      // Each parser reports only what is wrong with the text. Naming the file it was reading is
+      // the same job for all four, so it is done once here rather than at every failure site.
+      parsed.left.map {
+        case DotbotError.Message(detail) => DotbotError.ConfigParseFailed(path, detail)
+        case other                       => other
+      }
 
   private object ConfigFormat:
     def fromExtension(extension: String): Either[DotbotError, ConfigFormat] =

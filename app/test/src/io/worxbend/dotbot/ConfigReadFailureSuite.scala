@@ -28,6 +28,20 @@ class ConfigReadFailureSuite extends munit.FunSuite:
     )
   }
 
+  test("a syntax error names the config file it was reading") {
+    val root = os.temp.dir(prefix = "dotbot-scala-bad-syntax-")
+    val path = root / "install.conf.yaml"
+    os.write(path, "- link: {unclosed: mapping\n")
+
+    // `-c` accepts several config files, so a parser message on its own leaves the user hunting
+    // for which one failed.
+    ConfigReader().read(Vector(path.toString)) match
+      case Left(error @ DotbotError.ConfigParseFailed(reported, _)) =>
+        assertEquals(reported, path.toString)
+        assert(error.render.startsWith(s"could not parse config file \"$path\": "))
+      case other => fail(s"expected a parse failure, got $other")
+  }
+
   test("a config whose root is not a task list is rejected") {
     val root = os.temp.dir(prefix = "dotbot-scala-bad-root-")
     val path = root / "install.conf.yaml"
