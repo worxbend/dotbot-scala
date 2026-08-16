@@ -15,8 +15,8 @@ class OutcomeSuite extends munit.FunSuite:
     val okRuntime = TestRuntime()
     val failedRuntime = TestRuntime()
 
-    assertEquals(Outcome.Ok.withSummary(okRuntime.ctx, "all good", "failed"), Outcome.Ok)
-    assertEquals(Outcome.Failed.withSummary(failedRuntime.ctx, "all good", "failed"), Outcome.Failed)
+    assertEquals(Outcome.Ok.withSummary(okRuntime.ctx.log, "all good", "failed"), Outcome.Ok)
+    assertEquals(Outcome.Failed.withSummary(failedRuntime.ctx.log, "all good", "failed"), Outcome.Failed)
 
     assertEquals(okRuntime.output.toString, "info  all good\n")
     assertEquals(failedRuntime.output.toString, "error failed\n")

@@ -151,8 +151,7 @@ private final class CliStateBuilder:
     val updater = new UnaryOperator[CliState]:
       def apply(state: CliState): CliState =
         f(state)
-    current.updateAndGet(updater) match
-      case _ => ()
+    current.updateAndGet(updater): Unit
 
 private enum CliCommand:
   case Apply(state: CliState)

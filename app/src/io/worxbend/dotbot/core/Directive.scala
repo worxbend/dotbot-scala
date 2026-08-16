@@ -9,14 +9,21 @@ enum Directive(val label: String):
   case Unknown(raw: String) extends Directive(raw)
 
 object Directive:
+  /**
+   * The directives a config may name, by their label.
+   *
+   * Each label comes from the enum case itself rather than being written out a second time, so a
+   * renamed directive cannot fall out of step with the name a config may use. `Unknown` is absent
+   * on purpose: it represents a name that was *not* recognized.
+   */
+  private val known: Vector[Directive] =
+    Vector(Directive.Defaults, Directive.Clean, Directive.Create, Directive.Link, Directive.Shell)
+
+  private val byLabel: Map[String, Directive] =
+    known.map(directive => directive.label -> directive).toMap
+
   def fromString(value: String): Option[Directive] =
-    value match
-      case "defaults" => Some(Directive.Defaults)
-      case "clean"    => Some(Directive.Clean)
-      case "create"   => Some(Directive.Create)
-      case "link"     => Some(Directive.Link)
-      case "shell"    => Some(Directive.Shell)
-      case _          => None
+    byLabel.get(value)
 
   def parse(value: String): Directive =
     fromString(value).getOrElse(Directive.Unknown(value))

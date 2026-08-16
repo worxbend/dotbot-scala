@@ -137,20 +137,6 @@ object Logger:
   private[logging] val LabelWidth: Int = 6
 
   /**
-   * Create a logger with default level (`Action`) and auto-detected
-   * color + symbol capabilities.
-   */
-  def apply(out: PrintStream): Logger =
-    Logger(out, Level.Action, TerminalCapabilities.detect)
-
-  /**
-   * Create a logger with an explicit minimum level and auto-detected
-   * color + symbol capabilities.
-   */
-  def apply(out: PrintStream, minimum: Level): Logger =
-    Logger(out, minimum, TerminalCapabilities.detect)
-
-  /**
    * Create a logger with an explicit minimum level and terminal capabilities, writing everything
    * to a single stream.
    */
@@ -158,17 +144,13 @@ object Logger:
     new Logger(out, out, minimum, capabilities.color, capabilities.symbols)
 
   /**
-   * Create a logger with an explicit minimum level and color preference.
-   * Symbol rendering remains auto-detected.
+   * Create a logger with an explicit minimum level and color preference, rendering no symbols.
+   *
+   * This used to auto-detect symbols, which made the result depend on whether a console happened
+   * to be attached — including in the tests that use it to pin label alignment.
    */
   def apply(out: PrintStream, minimum: Level, color: Boolean): Logger =
-    new Logger(out, out, minimum, color, TerminalCapabilities.detect.symbols)
-
-  /**
-   * Create a logger with explicit level, color and symbol preferences.
-   */
-  def apply(out: PrintStream, minimum: Level, color: Boolean, symbols: Boolean): Logger =
-    new Logger(out, out, minimum, color, symbols)
+    new Logger(out, out, minimum, color, stylishSymbols = false)
 
   /**
    * Create a logger that separates diagnostics from output: warnings and errors go to `err`,

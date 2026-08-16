@@ -26,4 +26,4 @@ trait BatchedDirectiveHandler[S <: DirectiveSpec, E] extends DirectiveHandler:
   def execute(ctx: RuntimeContext, spec: S): Outcome =
     entries(spec).foldLeft(Outcome.Ok) { (outcome, entry) =>
       outcome.combine(executeEntry(ctx, entry))
-    }.withSummary(ctx, allSuccessfulMessage, someFailedMessage)
+    }.withSummary(ctx.log, allSuccessfulMessage, someFailedMessage)

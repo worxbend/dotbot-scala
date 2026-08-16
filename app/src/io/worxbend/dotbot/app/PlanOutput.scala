@@ -14,7 +14,7 @@ object PlanOutput:
    * @param stylish when true, render emoji icons and a decorated header.
    */
   def text(plan: Plan, taskCount: Int, configFileCount: Int, base: String, stylish: Boolean = false): String =
-    val lines = if stylish then stylishHeader(plan.operations.size, taskCount, configFileCount, base) else oldHeader(plan, taskCount, configFileCount, base)
+    val lines = if stylish then stylishHeader(plan.operations.size, taskCount, configFileCount, base) else plainHeader(plan, taskCount, configFileCount, base)
     val operations = plan.operations.map(operation => renderTextOperation(operation, stylish))
     (lines ++ operations).mkString("", "\n", "\n")
 
@@ -39,7 +39,7 @@ object PlanOutput:
     )
     ujson.write(doc, indent = 2) + "\n"
 
-  private def oldHeader(plan: Plan, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
+  private def plainHeader(plan: Plan, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
     Vector(s"Plan: ${plan.operations.size} operation(s), $taskCount task(s), $configFileCount config file(s), base $base")
 
   private def stylishHeader(operationCount: Int, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
