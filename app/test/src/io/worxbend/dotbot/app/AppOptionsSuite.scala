@@ -42,8 +42,11 @@ class AppOptionsSuite extends munit.FunSuite:
     assertEquals(DotbotApp.effectiveCapabilities(AppOptions(forceColor = true, noColor = true), pipe).color, false)
   }
 
-  test("conflicting emoji flags render nothing decorative") {
-    assertEquals(DotbotApp.effectiveCapabilities(AppOptions(forceEmoji = true, noEmoji = true), terminal).symbols, false)
+  test("conflicting emoji flags fall back the same way conflicting color flags do") {
+    // Color and symbols answer the same force/suppress/detected question, so a reader who has
+    // learned one rule should not find the other behaving differently.
+    assertEquals(DotbotApp.effectiveCapabilities(AppOptions(forceEmoji = true, noEmoji = true), terminal).symbols, true)
+    assertEquals(DotbotApp.effectiveCapabilities(AppOptions(forceEmoji = true, noEmoji = true), pipe).symbols, false)
   }
 
   test("color and symbols are decided independently") {

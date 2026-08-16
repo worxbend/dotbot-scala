@@ -171,13 +171,22 @@ object DotbotApp:
     else Level.Action
 
   private def colorEnabled(options: AppOptions, detected: TerminalCapabilities): Boolean =
-    if options.forceColor && options.noColor then detected.color
-    else if options.forceColor then true
-    else if options.noColor then false
-    else detected.color
+    resolveCapability(force = options.forceColor, suppress = options.noColor, detected = detected.color)
 
   private def symbolsEnabled(options: AppOptions, detected: TerminalCapabilities): Boolean =
-    if options.forceEmoji && options.noEmoji then false
-    else if options.forceEmoji then true
-    else if options.noEmoji then false
-    else detected.symbols
+    resolveCapability(force = options.forceEmoji, suppress = options.noEmoji, detected = detected.symbols)
+
+  /**
+   * Resolve one force/suppress flag pair against what the terminal reports.
+   *
+   * Color and symbols answer the same question, so they share the answer. They used to have a
+   * copy each and the copies had drifted: with both flags given, color fell back to what the
+   * terminal supported while symbols silently turned off. Neither flag wins a conflict, because
+   * `validateStartupOptions` is about to reject the run and its message has to be rendered the way
+   * any other message would be.
+   */
+  private def resolveCapability(force: Boolean, suppress: Boolean, detected: Boolean): Boolean =
+    if force && suppress then detected
+    else if force then true
+    else if suppress then false
+    else detected
