@@ -1,7 +1,7 @@
 package io.worxbend.dotbot.fs
 
 import io.worxbend.dotbot.core.FileMode
-import io.worxbend.dotbot.core.Filesystem as CoreFilesystem
+import io.worxbend.dotbot.core.Filesystem
 
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -11,8 +11,6 @@ import java.nio.file.attribute.PosixFilePermission
 
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
-
-type Filesystem = CoreFilesystem
 
 object OsFilesystem extends Filesystem:
   def exists(path: String): Boolean =

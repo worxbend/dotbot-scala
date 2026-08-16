@@ -1,21 +1,13 @@
 package io.worxbend.dotbot.shell
 
-import io.worxbend.dotbot.core.ShellExit as CoreShellExit
-import io.worxbend.dotbot.core.ShellOptions as CoreShellOptions
-import io.worxbend.dotbot.core.ShellRunner as CoreShellRunner
+import io.worxbend.dotbot.core.ShellExit
+import io.worxbend.dotbot.core.ShellOptions
+import io.worxbend.dotbot.core.ShellRunner
 import ox.forkDiscard
 import ox.supervised
 
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
-
-type ShellOptions = CoreShellOptions
-val ShellOptions: CoreShellOptions.type = CoreShellOptions
-
-type ShellExit = CoreShellExit
-val ShellExit: CoreShellExit.type = CoreShellExit
-
-type ShellRunner = CoreShellRunner
 
 object OsShellRunner extends ShellRunner:
   def run(command: String, options: ShellOptions): ShellExit =

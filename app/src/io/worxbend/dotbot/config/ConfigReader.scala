@@ -3,6 +3,7 @@ package io.worxbend.dotbot.config
 import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.EitherUtil
 import io.worxbend.dotbot.core.PathResolver
+import io.worxbend.dotbot.core.Task
 
 import scala.util.control.NonFatal
 

@@ -11,9 +11,12 @@ import com.github.plokhotnyuk.jsoniter_scala.core.JsonReader
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonWriter
 import com.github.plokhotnyuk.jsoniter_scala.core.readFromString
+import io.worxbend.dotbot.core.Action
+import io.worxbend.dotbot.core.ConfigValue
 import io.worxbend.dotbot.core.Directive
 import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.EitherUtil
+import io.worxbend.dotbot.core.Task
 import org.tomlj.Toml
 import org.virtuslab.yaml.Node
 import org.virtuslab.yaml.Tag

@@ -1,5 +1,8 @@
 package io.worxbend.dotbot.shell
 
+import io.worxbend.dotbot.core.ShellExit
+import io.worxbend.dotbot.core.ShellOptions
+
 import java.time.Duration
 
 class ShellRunnerSuite extends munit.FunSuite:
