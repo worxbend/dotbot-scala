@@ -252,22 +252,26 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
   private def removeWhen(condition: Boolean): RemoveDecision =
     if condition then RemoveDecision.Remove else RemoveDecision.Keep
 
+  /**
+   * Remove whatever currently occupies the link path, so that the link can be created.
+   *
+   * A plain file or directory is only removed under `force`. `relink` on its own is about
+   * replacing a symlink that points somewhere else, and must not delete real content.
+   */
   private def removeLink(ctx: RuntimeContext, link: LinkResolution, options: LinkOptions): RemoveResult =
     val wasSymlink = ctx.fs.isSymlink(link.linkPath)
-    val result =
-      if wasSymlink then
-        ctx.withFilesystem(ctx.fs.remove(link.linkPath), _ => s"Failed to remove ${link.linkName}")
-      else if options.force && ctx.fs.isDir(link.linkPath) then
-        ctx.withFilesystem(ctx.fs.removeAll(link.linkPath), _ => s"Failed to remove ${link.linkName}")
-      else if options.force then
-        ctx.withFilesystem(ctx.fs.remove(link.linkPath), _ => s"Failed to remove ${link.linkName}")
-      else None
-
-    if !options.force && !wasSymlink then RemoveResult.Kept
-    else if result.isEmpty then RemoveResult.FailedAfterRemoveAttempt
+    if !wasSymlink && !options.force then RemoveResult.Kept
     else
-      ctx.log.action(s"Removing ${link.linkName}")
-      RemoveResult.Removed
+      val failure = (_: Throwable) => s"Failed to remove ${link.linkName}"
+      val removed =
+        if wasSymlink then ctx.withFilesystem(ctx.fs.remove(link.linkPath), failure)
+        else if ctx.fs.isDir(link.linkPath) then ctx.withFilesystem(ctx.fs.removeAll(link.linkPath), failure)
+        else ctx.withFilesystem(ctx.fs.remove(link.linkPath), failure)
+
+      if removed.isEmpty then RemoveResult.FailedAfterRemoveAttempt
+      else
+        ctx.log.action(s"Removing ${link.linkName}")
+        RemoveResult.Removed
 
   private def createLink(
     ctx:           RuntimeContext,
