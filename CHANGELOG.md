@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.2
+
+No user-visible changes. Same commands, same output, same exit codes -- this release is entirely
+internal cleanup, verified against the golden test suite that asserts exact stdout, stderr and
+exit codes for every command.
+
+### Internal
+
+- **The filesystem port no longer speaks in Java exceptions.** Its methods returned
+  `Either[Throwable, A]`, but every caller reduced that to the exception's message and nothing
+  ever inspected the type. It now returns a plain `FsFailure(message)`, so the domain layer names
+  no JVM type and test fakes no longer invent exceptions to satisfy a signature.
+- **Link creation is readable.** The function deciding what to do when a link path is occupied was
+  fifty lines with a four-line boolean guard and a filesystem call embedded inside a condition. It
+  is now a three-line dispatch over three named cases.
+- **Startup failures are values, not exit codes.** The startup path returned `Either[Int, _]`, so
+  each failing branch had to remember both to log its message and to return an exit code. Failures
+  now travel as `DotbotError` and are rendered in one place, matching the rest of the pipeline.
+- **`clean` and `shell` entries carry options objects**, as `link` already did, so the
+  defaults-then-override rule is stated once per directive rather than inlined per field. This
+  also retires a six-field positional `ShellEntry.Command` in which two boolean flags could be
+  transposed without the compiler noticing.
+- **A second copy of the run modes is gone.** `AppCommand` duplicated `RunMode` case for case with
+  an identity converter between them; adding a mode meant editing both plus the converter.
+- **A parse failure is caught in one place.** All four config parsers ended with the same
+  exception-to-error line; it now lives in the shared dispatch, so a fifth format cannot forget it.
+- The containment rule that decides whether `clean` deletes a broken symlink moved into `PathUtil`
+  and gained direct tests, including the sibling-prefix (`/base` vs `/basement`) and escaping-`..`
+  boundaries that previously had only indirect coverage.
+- Removed dead code: an unused `ShellExit.code`, a `DirectiveSpec.directive` no caller read, and a
+  single-use decoder combinator that duplicated `Option.orElse`.
+
 ## 0.2.1
 
 ### Fixed
