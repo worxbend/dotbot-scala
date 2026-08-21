@@ -7,8 +7,6 @@ import com.github.plokhotnyuk.jsoniter_scala.core.readFromString
 import io.worxbend.dotbot.core.ConfigValue
 import io.worxbend.dotbot.core.DotbotError
 
-import scala.util.control.NonFatal
-
 /** Reads JSON with a hand-written codec, so that field order survives and no macro or reflection is involved. */
 private[config] object JsonParser:
   /**
@@ -22,9 +20,7 @@ private[config] object JsonParser:
    */
   def parse(data: String): Either[DotbotError, ConfigValue] =
     if data.trim.isEmpty then Right(ConfigValue.NullValue)
-    else
-      try Right(readFromString(data)(using JsonConfigValueCodec))
-      catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
+    else Right(readFromString(data)(using JsonConfigValueCodec))
 
   private object JsonConfigValueCodec extends JsonValueCodec[ConfigValue]:
     def nullValue: ConfigValue = ConfigValue.NullValue

@@ -12,7 +12,6 @@ import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.EitherUtil
 
 import scala.jdk.CollectionConverters.*
-import scala.util.control.NonFatal
 
 /**
  * Reads HOCON, the one format whose parser does not preserve field order on its own.
@@ -31,20 +30,18 @@ private[config] object HoconParser:
    * `checkTaskOrder` rather than guessed at.
    */
   def parse(data: String, path: String): Either[DotbotError, ConfigValue] =
-    try
-      val (configText, rootPath)    = hoconInput(data)
-      val options                   = ConfigParseOptions
-        .defaults()
-        .setSyntax(ConfigSyntax.CONF)
-        .setOriginDescription(path)
-      val parsed                    = ConfigFactory.parseString(configText, options)
-      // `Config.getValue` reports a null value as a missing key, so the wrapper is read off the
-      // root object instead, where an explicit null survives as a null value.
-      val root: TypesafeConfigValue =
-        rootPath.fold(parsed.root())(valuePath => parsed.root().get(valuePath))
+    val (configText, rootPath)    = hoconInput(data)
+    val options                   = ConfigParseOptions
+      .defaults()
+      .setSyntax(ConfigSyntax.CONF)
+      .setOriginDescription(path)
+    val parsed                    = ConfigFactory.parseString(configText, options)
+    // `Config.getValue` reports a null value as a missing key, so the wrapper is read off the
+    // root object instead, where an explicit null survives as a null value.
+    val root: TypesafeConfigValue =
+      rootPath.fold(parsed.root())(valuePath => parsed.root().get(valuePath))
 
-      checkTaskOrder(path, root).map(_ => fromTypesafe(root))
-    catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
+    checkTaskOrder(path, root).map(_ => fromTypesafe(root))
 
   /**
    * Wrap a root-level list so that Lightbend Config, which requires an object at the root, can

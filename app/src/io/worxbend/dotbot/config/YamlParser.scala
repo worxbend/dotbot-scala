@@ -5,20 +5,17 @@ import io.worxbend.dotbot.core.DotbotError
 
 import org.virtuslab.yaml.Node
 import org.virtuslab.yaml.Tag
-import scala.util.control.NonFatal
 
 /** Reads YAML, which already gives back an object's fields in the order they were written. */
 private[config] object YamlParser:
   def parse(data: String): Either[DotbotError, ConfigValue] =
     if data.trim.isEmpty then Right(ConfigValue.NullValue)
     else
-      try
-        org.virtuslab.yaml
-          .parseYaml(data)
-          .map(fromYaml)
-          .left
-          .map(error => DotbotError.Message(error.getMessage))
-      catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
+      org.virtuslab.yaml
+        .parseYaml(data)
+        .map(fromYaml)
+        .left
+        .map(error => DotbotError.Message(error.getMessage))
 
   private def fromYaml(node: Node): ConfigValue =
     node match

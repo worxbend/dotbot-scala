@@ -7,6 +7,8 @@ import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.EitherUtil
 import io.worxbend.dotbot.core.Task
 
+import scala.util.control.NonFatal
+
 /**
  * Picks a parser by file extension and turns what it produces into the ordered task list the rest
  * of the pipeline works on. The formats themselves live in one object each.
@@ -25,12 +27,18 @@ object ConfigParsers:
     case Toml
 
     def parse(path: String, data: String): Either[DotbotError, ConfigValue] =
+      // Every one of these libraries signals a malformed document by throwing. Turning that into
+      // an error value is the same job for all four, so it is done once here rather than in each
+      // parser -- which also means a fifth format cannot forget to do it.
       val parsed =
-        this match
-          case Yaml  => YamlParser.parse(data)
-          case Hocon => HoconParser.parse(data, path)
-          case Json  => JsonParser.parse(data)
-          case Toml  => TomlParser.parse(data)
+        try
+          this match
+            case Yaml  => YamlParser.parse(data)
+            case Hocon => HoconParser.parse(data, path)
+            case Json  => JsonParser.parse(data)
+            case Toml  => TomlParser.parse(data)
+        catch
+          case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
       // Each parser reports only what is wrong with the text. Naming the file it was reading is
       // the same job for all four, so it is done once here rather than at every failure site.
       parsed.left.map {

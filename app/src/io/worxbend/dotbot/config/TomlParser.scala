@@ -5,16 +5,13 @@ import io.worxbend.dotbot.core.DotbotError
 
 import org.tomlj.Toml
 import scala.jdk.CollectionConverters.*
-import scala.util.control.NonFatal
 
 /** Reads TOML, which like YAML preserves the order its tables were written in. */
 private[config] object TomlParser:
   def parse(data: String): Either[DotbotError, ConfigValue] =
-    try
-      val result = Toml.parse(data)
-      if result.hasErrors() then Left(DotbotError.Message(result.errors().asScala.map(_.toString).mkString("; ")))
-      else Right(fromToml(result))
-    catch case NonFatal(e) => Left(DotbotError.Message(e.getMessage))
+    val result = Toml.parse(data)
+    if result.hasErrors() then Left(DotbotError.Message(result.errors().asScala.map(_.toString).mkString("; ")))
+    else Right(fromToml(result))
 
   private def fromToml(value: Matchable | Null): ConfigValue =
     Option(value).fold(ConfigValue.NullValue)(fromTomlValue)
