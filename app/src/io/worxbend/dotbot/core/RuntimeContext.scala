@@ -31,11 +31,11 @@ final case class RuntimeContext(
    */
   def performsSideEffects: Boolean = !options.dryRun
 
-  def withFilesystem[A](result: => Either[Throwable, A], onFailure: Throwable => String): Option[A] =
+  def withFilesystem[A](result: => FsResult[A], onFailure: FsFailure => String): Option[A] =
     result match
       case Left(error)  =>
         log.warning(onFailure(error))
-        log.debug(error.getMessage)
+        log.debug(error.message)
         None
       case Right(value) =>
         Some(value)

@@ -68,7 +68,7 @@ object Glob:
     fs.walk(root, maxDepth)
       .map(_.filter(path => matcher.matches(Paths.get(path))).filter(includePath))
       .left
-      .map(error => DotbotError.Message(error.getMessage))
+      .map(error => DotbotError.Message(error.message))
 
   /** Characterized by GlobSuite: double-star patterns exclude directories unless the pattern ends with "/". */
   private def includeDoubleStarMatch(fs: Filesystem, pattern: String, path: String): Boolean =

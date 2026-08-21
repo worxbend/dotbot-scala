@@ -273,7 +273,7 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
     val wasSymlink = ctx.fs.isSymlink(link.linkPath)
     if !wasSymlink && !options.force then RemoveResult.Kept
     else
-      val failure = (_: Throwable) => s"Failed to remove ${link.linkName}"
+      val failure = (_: FsFailure) => s"Failed to remove ${link.linkName}"
       val removed =
         if wasSymlink then ctx.withFilesystem(ctx.fs.remove(link.linkPath), failure)
         else if ctx.fs.isDir(link.linkPath) then ctx.withFilesystem(ctx.fs.removeAll(link.linkPath), failure)

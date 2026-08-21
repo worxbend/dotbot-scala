@@ -2,6 +2,8 @@ package io.worxbend.dotbot.fs
 
 import io.worxbend.dotbot.core.FileMode
 import io.worxbend.dotbot.core.Filesystem
+import io.worxbend.dotbot.core.FsFailure
+import io.worxbend.dotbot.core.FsResult
 
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -25,78 +27,88 @@ object OsFilesystem extends Filesystem:
   def isSymlink(path: String): Boolean =
     Files.isSymbolicLink(Paths.get(path))
 
-  def listDir(path: String): Either[Throwable, Vector[String]] =
+  def listDir(path: String): FsResult[Vector[String]] =
     Try:
       val stream = Files.list(Paths.get(path))
       try stream.iterator().asScala.map(_.getFileName.toString).toVector
       finally stream.close()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def walk(root: String, maxDepth: Int): Either[Throwable, Vector[String]] =
+  def walk(root: String, maxDepth: Int): FsResult[Vector[String]] =
     Try:
       if !Files.exists(Paths.get(root)) then Vector.empty
       else
         val stream = Files.walk(Paths.get(root), maxDepth)
         try stream.iterator().asScala.map(_.normalize().toString).toVector
         finally stream.close()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def mkdirAll(path: String): Either[Throwable, Unit] =
+  def mkdirAll(path: String): FsResult[Unit] =
     Try:
       Files.createDirectories(Paths.get(path))
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def chmod(path: String, mode: FileMode): Either[Throwable, Unit] =
+  def chmod(path: String, mode: FileMode): FsResult[Unit] =
     Try:
       Files.setPosixFilePermissions(Paths.get(path), permissionsFromMode(mode).asJava)
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def readlink(path: String): Either[Throwable, String] =
-    Try(Files.readSymbolicLink(Paths.get(path)).toString).toEither
+  def readlink(path: String): FsResult[String] =
+    Try(Files.readSymbolicLink(Paths.get(path)).toString).toEither.left.map(asFailure)
 
-  def realpath(path: String): Either[Throwable, String] =
-    Try(Paths.get(path).toRealPath().toString).toEither
+  def realpath(path: String): FsResult[String] =
+    Try(Paths.get(path).toRealPath().toString).toEither.left.map(asFailure)
 
-  def remove(path: String): Either[Throwable, Unit] =
+  def remove(path: String): FsResult[Unit] =
     Try:
       Files.delete(Paths.get(path))
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def removeAll(path: String): Either[Throwable, Unit] =
+  def removeAll(path: String): FsResult[Unit] =
     Try:
       os.remove.all(os.Path(path, os.pwd))
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def rename(from: String, to: String): Either[Throwable, Unit] =
+  def rename(from: String, to: String): FsResult[Unit] =
     Try:
       Files.move(Paths.get(from), Paths.get(to), StandardCopyOption.REPLACE_EXISTING)
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def sameFile(a: String, b: String): Either[Throwable, Boolean] =
-    Try(Files.isSameFile(Paths.get(a), Paths.get(b))).toEither
+  def sameFile(a: String, b: String): FsResult[Boolean] =
+    Try(Files.isSameFile(Paths.get(a), Paths.get(b))).toEither.left.map(asFailure)
 
-  def stat(path: String): Either[Throwable, Unit] =
+  def stat(path: String): FsResult[Unit] =
     Try:
       Files.readAttributes(Paths.get(path), classOf[java.nio.file.attribute.BasicFileAttributes])
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def symlink(target: String, link: String): Either[Throwable, Unit] =
+  def symlink(target: String, link: String): FsResult[Unit] =
     Try:
       Files.createSymbolicLink(Paths.get(link), Paths.get(target))
       ()
-    .toEither
+    .toEither.left.map(asFailure)
 
-  def hardlink(target: String, link: String): Either[Throwable, Unit] =
+  def hardlink(target: String, link: String): FsResult[Unit] =
     Try:
       Files.createLink(Paths.get(link), Paths.get(target))
       ()
-    .toEither
+    .toEither.left.map(asFailure)
+
+  /**
+   * Reduce a thrown exception to the message the log will show.
+   *
+   * `String.valueOf` rather than `.getMessage` directly: an exception is allowed to carry a null
+   * message, and this keeps that rendering as the text "null" -- which is what string
+   * interpolation of the raw message produced before, so no log line changes.
+   */
+  private def asFailure(error: Throwable): FsFailure =
+    FsFailure(String.valueOf(error.getMessage))
 
   private[fs] def permissionsFromMode(mode: FileMode): Set[PosixFilePermission] =
     PermissionBits.collect {

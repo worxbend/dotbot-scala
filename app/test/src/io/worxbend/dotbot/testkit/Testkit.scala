@@ -4,6 +4,8 @@ import io.worxbend.dotbot.core.CoreOptions
 import io.worxbend.dotbot.core.Environment
 import io.worxbend.dotbot.core.FileMode
 import io.worxbend.dotbot.core.Filesystem
+import io.worxbend.dotbot.core.FsFailure
+import io.worxbend.dotbot.core.FsResult
 import io.worxbend.dotbot.core.PathResolver
 import io.worxbend.dotbot.core.RuntimeContext
 import io.worxbend.dotbot.core.ShellExit
@@ -14,7 +16,6 @@ import io.worxbend.dotbot.logging.Logger
 
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import java.nio.file.NoSuchFileException
 import java.nio.file.Paths
 import java.time.Clock
 import scala.collection.mutable.ArrayBuffer
@@ -63,9 +64,9 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
       case _                    => false
     }
 
-  def listDir(path: String): Either[Throwable, Vector[String]] =
+  def listDir(path: String): FsResult[Vector[String]] =
     val dir = normalize(path)
-    if !isDir(dir) then Left(NoSuchFileException(dir))
+    if !isDir(dir) then Left(FsFailure(dir))
     else
       Right(
         entries.keysIterator
@@ -75,7 +76,7 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
           .sorted,
       )
 
-  def walk(root: String, maxDepth: Int): Either[Throwable, Vector[String]] =
+  def walk(root: String, maxDepth: Int): FsResult[Vector[String]] =
     val normalized = normalize(root)
     if !entries.contains(normalized) then Right(Vector.empty)
     else
@@ -88,36 +89,36 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
           .sorted,
       )
 
-  def mkdirAll(path: String): Either[Throwable, Unit] =
+  def mkdirAll(path: String): FsResult[Unit] =
     val normalized = normalize(path)
     entries.update(normalized, FakeEntry.Directory)
     mkdirCalls0 += normalized
     Right(())
 
-  def chmod(path: String, mode: FileMode): Either[Throwable, Unit] =
+  def chmod(path: String, mode: FileMode): FsResult[Unit] =
     val normalized = normalize(path)
     if lexists(normalized) then
       chmodCalls0 += (normalized -> mode)
       Right(())
-    else Left(NoSuchFileException(normalized))
+    else Left(FsFailure(normalized))
 
-  def readlink(path: String): Either[Throwable, String] =
+  def readlink(path: String): FsResult[String] =
     entries.get(normalize(path)) match
       case Some(FakeEntry.Symlink(target)) => Right(target)
-      case _                               => Left(NoSuchFileException(path))
+      case _                               => Left(FsFailure(path))
 
-  def realpath(path: String): Either[Throwable, String] =
-    if exists(path) then Right(normalize(path)) else Left(NoSuchFileException(path))
+  def realpath(path: String): FsResult[String] =
+    if exists(path) then Right(normalize(path)) else Left(FsFailure(path))
 
-  def remove(path: String): Either[Throwable, Unit] =
+  def remove(path: String): FsResult[Unit] =
     val normalized = normalize(path)
     if lexists(normalized) then
       removeEntry(normalized)
       removeCalls0 += normalized
       Right(())
-    else Left(NoSuchFileException(normalized))
+    else Left(FsFailure(normalized))
 
-  def removeAll(path: String): Either[Throwable, Unit] =
+  def removeAll(path: String): FsResult[Unit] =
     val normalized = normalize(path)
     val removed    = entries.keysIterator
       .filter(item => item == normalized || item.startsWith(normalized + "/"))
@@ -126,7 +127,7 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
     removeCalls0 += normalized
     Right(())
 
-  def rename(from: String, to: String): Either[Throwable, Unit] =
+  def rename(from: String, to: String): FsResult[Unit] =
     val normalizedFrom = normalize(from)
     val normalizedTo   = normalize(to)
     entries.get(normalizedFrom) match
@@ -134,23 +135,23 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
         removeEntry(normalizedFrom)
         entries.update(normalizedTo, entry)
         Right(())
-      case None        => Left(NoSuchFileException(normalizedFrom))
+      case None        => Left(FsFailure(normalizedFrom))
 
-  def sameFile(a: String, b: String): Either[Throwable, Boolean] =
+  def sameFile(a: String, b: String): FsResult[Boolean] =
     Right(normalize(a) == normalize(b))
 
-  def stat(path: String): Either[Throwable, Unit] =
-    if exists(path) then Right(()) else Left(NoSuchFileException(path))
+  def stat(path: String): FsResult[Unit] =
+    if exists(path) then Right(()) else Left(FsFailure(path))
 
-  def symlink(target: String, link: String): Either[Throwable, Unit] =
+  def symlink(target: String, link: String): FsResult[Unit] =
     entries.update(normalize(link), FakeEntry.Symlink(target))
     Right(())
 
-  def hardlink(target: String, link: String): Either[Throwable, Unit] =
+  def hardlink(target: String, link: String): FsResult[Unit] =
     if exists(target) then
       entries.update(normalize(link), FakeEntry.File)
       Right(())
-    else Left(NoSuchFileException(target))
+    else Left(FsFailure(target))
 
   private def resolveLink(path: String, target: String): Option[String] =
     val targetPath = Paths.get(target)

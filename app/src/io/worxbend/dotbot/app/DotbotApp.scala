@@ -126,7 +126,7 @@ object DotbotApp:
 
     deps.fs.stat(base) match
       case Left(error) =>
-        logger.error(s"nonexistent base directory: ${error.getMessage}")
+        logger.error(s"nonexistent base directory: ${error.message}")
         Left(1)
       case Right(_)    => Right(base)
 
