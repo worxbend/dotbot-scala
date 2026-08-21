@@ -33,7 +33,8 @@ This keeps observable behavior stable while allowing fast unit tests against fak
 - TS-4: Config read/parse, decode, validation, planning, execution, glob, link-option, and unknown-action failures flow through `DotbotError`; rendering remains at the app edge.
 - TS-5: Directive execution now returns `Outcome` instead of `Boolean` for soft failure accumulation.
 - TS-6: Link backup/delete results use named result enums instead of boolean tuples.
-- TS-7: Shell execution returns `ShellExit`; timeout still maps to compatibility code `124` at the edge.
+- TS-7: Shell execution returns `ShellExit`, with `TimedOut` as a case distinct from `Completed(exitCode)` so a
+  timeout is never confused with a command that chose to exit non-zero.
 - TS-8: File modes use the opaque `FileMode` type.
 - PV-1: `ConfigDecoder` instances decode each action into typed specs through shared shape/field combinators before plan/execute paths.
 - PV-2/PV-3: The old `Values` helper was replaced with `ConfigValue` extension methods and directive decoders; strict decoding now surfaces bad list and mode values.

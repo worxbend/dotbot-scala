@@ -44,14 +44,12 @@ class ShellCommandSuite extends munit.FunSuite:
 
     assertEquals(exit, ShellExit.Completed(3))
     assertEquals(exit.successful, false)
-    assertEquals(exit.code, 3)
   }
 
-  test("a timeout maps to the conventional exit code 124") {
+  test("a timeout yields ShellExit.TimedOut") {
     val exit = OsShellRunner.run("sleep 5", ShellOptions(cwd = os.pwd.toString, timeout = Duration.ofMillis(100)))
 
     assertEquals(exit, ShellExit.TimedOut)
-    assertEquals(exit.code, 124)
     assertEquals(exit.successful, false)
   }
 

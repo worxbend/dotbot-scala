@@ -63,11 +63,6 @@ enum ShellExit:
   case Completed(exitCode: Int)
   case TimedOut
 
-  def code: Int =
-    this match
-      case ShellExit.Completed(value) => value
-      case ShellExit.TimedOut         => 124
-
   def successful: Boolean =
     this match
       case ShellExit.Completed(0) => true
