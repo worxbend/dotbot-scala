@@ -1,7 +1,5 @@
 package io.worxbend.dotbot.core
 
-import java.nio.file.Paths
-
 final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
 
   def directive: Directive = Directive.Clean
@@ -68,8 +66,8 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
     ctx.withFilesystem(ctx.fs.readlink(path), _ => s"Failed to inspect invalid link $path") match
       case None             => Outcome.Failed
       case Some(targetPath) =>
-        val pointsAt = linkTargetPath(path, targetPath)
-        if inDirectory(pointsAt, ctx.baseDirectory) || force then
+        val pointsAt = PathUtil.resolveLinkTarget(path, targetPath)
+        if PathUtil.contains(ctx.baseDirectory, pointsAt) || force then
           if ctx.options.dryRun then
             ctx.log.action(s"Would remove invalid link $path -> $pointsAt")
             Outcome.Ok
@@ -81,13 +79,3 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
         else
           ctx.log.info(s"Link $path -> $pointsAt not removed.")
           Outcome.Ok
-
-  private def inDirectory(path: String, directory: String): Boolean =
-    val dir = Paths.get(directory).normalize().toString
-    val p   = Paths.get(path).normalize().toString
-    p == dir || p.startsWith(dir + "/")
-
-  private def linkTargetPath(linkPath: String, targetPath: String): String =
-    val target = Paths.get(targetPath)
-    if target.isAbsolute then target.normalize().toString
-    else Paths.get(PathUtil.dirname(linkPath), targetPath).normalize().toString

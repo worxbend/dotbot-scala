@@ -26,6 +26,32 @@ object PathUtil:
     try Paths.get(fromDirectory).relativize(Paths.get(target)).toString
     catch case _: IllegalArgumentException => target
 
+  /**
+   * True when `path` is `directory` itself or lives somewhere beneath it.
+   *
+   * Both sides are normalized first, so `..` segments are resolved before the comparison rather
+   * than being taken at face value: `/base/../other` is not inside `/base`. The trailing slash in
+   * the prefix test is what keeps `/basement` from counting as being inside `/base`.
+   *
+   * This is the rule that decides whether `clean` deletes a broken symlink, so the sibling-prefix
+   * and escaping-`..` cases are the ones worth being sure about.
+   */
+  def contains(directory: String, path: String): Boolean =
+    val dir    = clean(directory)
+    val target = clean(path)
+    target == dir || target.startsWith(dir + "/")
+
+  /**
+   * Resolve a symlink's stored target against the directory the link itself lives in.
+   *
+   * A symlink records its target as written, which may be relative -- and when it is, it is
+   * relative to the link's own directory, not to the working directory of whatever is reading it.
+   */
+  def resolveLinkTarget(linkPath: String, targetPath: String): String =
+    val target = Paths.get(targetPath)
+    if target.isAbsolute then target.normalize().toString
+    else join(dirname(linkPath), targetPath)
+
 /**
  * Expands and resolves the paths written in a configuration file against a given [[Environment]].
  *

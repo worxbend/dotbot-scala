@@ -41,3 +41,25 @@ class CorePropertySuite extends munit.ScalaCheckSuite:
       assert(Glob.hasGlobChars(s"$prefix$char$suffix"))
     }
   }
+
+  test("containment accepts the directory itself and anything beneath it") {
+    assert(PathUtil.contains("/base", "/base"))
+    assert(PathUtil.contains("/base", "/base/x"))
+    assert(PathUtil.contains("/base", "/base/x/y/z"))
+  }
+
+  test("containment rejects a sibling whose name merely starts with the directory name") {
+    assert(!PathUtil.contains("/base", "/basement/x"))
+  }
+
+  test("containment resolves .. before deciding, so an escaping path is outside") {
+    assert(!PathUtil.contains("/base", "/base/../other"))
+  }
+
+  test("an absolute link target is used as written") {
+    assertEquals(PathUtil.resolveLinkTarget("/a/b/link", "/abs/t"), "/abs/t")
+  }
+
+  test("a relative link target resolves against the link's own directory") {
+    assertEquals(PathUtil.resolveLinkTarget("/a/b/link", "../t"), "/a/t")
+  }
