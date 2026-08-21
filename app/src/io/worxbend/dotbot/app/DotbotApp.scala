@@ -83,10 +83,11 @@ object DotbotApp:
       deps: AppDependencies = AppDependencies(),
       stderr: PrintStream = System.err,
   ): Int =
-    val logger = loggerFor(stdout, stderr, options, deps.capabilities)
+    val capabilities = effectiveCapabilities(options, deps.capabilities)
+    val logger       = Logger.split(stdout, stderr, minimumLevel(options), capabilities)
     load(options, deps, logger) match
       case Left(exitCode) => exitCode
-      case Right(loaded)  => execute(options, stdout, deps, logger, loaded)
+      case Right(loaded)  => execute(options, stdout, deps, logger, capabilities, loaded)
 
   private def load(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, LoadedConfig] =
     for
@@ -135,20 +136,13 @@ object DotbotApp:
       stdout: PrintStream,
       deps: AppDependencies,
       logger: Logger,
+      capabilities: TerminalCapabilities,
       loaded: LoadedConfig,
   ): Int =
-    val stylish     = symbolsEnabled(options, deps.capabilities)
+    val stylish     = capabilities.symbols
     val interpreter = Wiring.interpreter(loaded.base, options, logger, deps)
     val context     = AppCommandContext(options, stdout, logger, interpreter, loaded, stylish)
     AppCommand.execute(options.mode, context)
-
-  private def loggerFor(
-      stdout: PrintStream,
-      stderr: PrintStream,
-      options: AppOptions,
-      capabilities: TerminalCapabilities,
-  ): Logger =
-    Logger.split(stdout, stderr, minimumLevel(options), effectiveCapabilities(options, capabilities))
 
   /**
    * Resolve what to render from the CLI flags and what the terminal actually supports.
