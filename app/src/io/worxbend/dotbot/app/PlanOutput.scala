@@ -5,6 +5,15 @@ import io.worxbend.dotbot.core.Plan
 import io.worxbend.dotbot.core.Operation
 
 /**
+ * The run-level numbers printed in a plan header.
+ *
+ * Grouped rather than passed separately because `taskCount` and `configFileCount` are adjacent
+ * `Int`s: threaded positionally they can be swapped at a call site to produce a wrong but entirely
+ * plausible header that still compiles.
+ */
+final case class PlanSummary(taskCount: Int, configFileCount: Int, base: String)
+
+/**
  * Renderers for `plan` command output.
  */
 object PlanOutput:
@@ -13,22 +22,22 @@ object PlanOutput:
    *
    * @param stylish when true, render emoji icons and a decorated header.
    */
-  def text(plan: Plan, taskCount: Int, configFileCount: Int, base: String, stylish: Boolean = false): String =
+  def text(plan: Plan, summary: PlanSummary, stylish: Boolean = false): String =
     val lines      =
-      if stylish then stylishHeader(plan.operations.size, taskCount, configFileCount, base)
-      else plainHeader(plan, taskCount, configFileCount, base)
+      if stylish then stylishHeader(plan.operations.size, summary)
+      else plainHeader(plan.operations.size, summary)
     val operations = plan.operations.map(operation => renderTextOperation(operation, stylish))
     (lines ++ operations).mkString("", "\n", "\n")
 
   /**
    * Render a machine-readable JSON plan document.
    */
-  def json(plan: Plan, taskCount: Int, configFileCount: Int, base: String): String =
+  def json(plan: Plan, summary: PlanSummary): String =
     val doc = ujson.Obj(
-      "task_count"        -> taskCount,
-      "config_file_count" -> configFileCount,
+      "task_count"        -> summary.taskCount,
+      "config_file_count" -> summary.configFileCount,
       "operation_count"   -> plan.operations.size,
-      "base"              -> base,
+      "base"              -> summary.base,
       "operations"        -> ujson.Arr.from(
         plan.operations.map { operation =>
           ujson.Obj(
@@ -41,18 +50,19 @@ object PlanOutput:
     )
     ujson.write(doc, indent = 2) + "\n"
 
-  private def plainHeader(plan: Plan, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
+  private def plainHeader(operationCount: Int, summary: PlanSummary): Vector[String] =
     Vector(
-      s"Plan: ${plan.operations.size} operation(s), $taskCount task(s), $configFileCount config file(s), base $base",
+      s"Plan: $operationCount operation(s), ${summary.taskCount} task(s), " +
+        s"${summary.configFileCount} config file(s), base ${summary.base}",
     )
 
-  private def stylishHeader(operationCount: Int, taskCount: Int, configFileCount: Int, base: String): Vector[String] =
+  private def stylishHeader(operationCount: Int, summary: PlanSummary): Vector[String] =
     val metricLines  = Vector(
       "🗺️  plan",
       s"🧭 operations: $operationCount operation(s)",
-      s"🧩 tasks: $taskCount task(s)",
-      s"📁 configs: $configFileCount config file(s)",
-      s"🏠 base: $base",
+      s"🧩 tasks: ${summary.taskCount} task(s)",
+      s"📁 configs: ${summary.configFileCount} config file(s)",
+      s"🏠 base: ${summary.base}",
     )
     val contentWidth = metricLines.map(displayWidth).max + 2
     val top          = s"╭${"─" * (contentWidth + 2)}╮"

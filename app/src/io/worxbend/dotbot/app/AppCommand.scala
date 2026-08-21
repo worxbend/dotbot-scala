@@ -66,13 +66,10 @@ private[app] object AppCommand:
 
   private def printPlan(ctx: AppCommandContext, format: OutputFormat): Int =
     withPlan(ctx) { plan =>
+      val summary = PlanSummary(ctx.loaded.tasks.size, ctx.options.configFiles.size, ctx.loaded.base)
       format match
-        case OutputFormat.Text =>
-          ctx.stdout.print(
-            PlanOutput.text(plan, ctx.loaded.tasks.size, ctx.options.configFiles.size, ctx.loaded.base, ctx.stylishUi),
-          )
-        case OutputFormat.Json =>
-          ctx.stdout.print(PlanOutput.json(plan, ctx.loaded.tasks.size, ctx.options.configFiles.size, ctx.loaded.base))
+        case OutputFormat.Text => ctx.stdout.print(PlanOutput.text(plan, summary, ctx.stylishUi))
+        case OutputFormat.Json => ctx.stdout.print(PlanOutput.json(plan, summary))
       0
     }
 

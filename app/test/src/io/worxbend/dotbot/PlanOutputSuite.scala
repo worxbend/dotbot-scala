@@ -1,6 +1,7 @@
 package io.worxbend.dotbot
 
 import io.worxbend.dotbot.app.PlanOutput
+import io.worxbend.dotbot.app.PlanSummary
 import io.worxbend.dotbot.core.DetailStyle
 import io.worxbend.dotbot.core.Directive
 import io.worxbend.dotbot.core.Operation
@@ -17,7 +18,7 @@ class PlanOutputSuite extends munit.FunSuite:
 
   test("text output preserves header and operation detail styles") {
     assertEquals(
-      PlanOutput.text(threeOperations, taskCount = 3, configFileCount = 1, base = "/tmp/home"),
+      PlanOutput.text(threeOperations, PlanSummary(taskCount = 3, configFileCount = 1, base = "/tmp/home")),
       """Plan: 3 operation(s), 3 task(s), 1 config file(s), base /tmp/home
         |create  generated
         |link    linked.txt -> source.txt
@@ -27,7 +28,7 @@ class PlanOutputSuite extends munit.FunSuite:
   }
 
   test("targets start in the same column for every directive") {
-    val lines         = PlanOutput.text(threeOperations, 3, 1, "/tmp/home").linesIterator.drop(1).toVector
+    val lines         = PlanOutput.text(threeOperations, PlanSummary(3, 1, "/tmp/home")).linesIterator.drop(1).toVector
     val targetColumns = lines.map(line => line.indexOf(line.trim.split(" +")(1)))
 
     // The column is what makes a plan scannable; it used to print the literal text "%-7s".
@@ -39,7 +40,7 @@ class PlanOutputSuite extends munit.FunSuite:
     val plan = Plan(Vector(Operation(Directive.Unknown("a-very-long-directive"), "target")))
 
     assertEquals(
-      PlanOutput.text(plan, 1, 1, "/tmp/home"),
+      PlanOutput.text(plan, PlanSummary(1, 1, "/tmp/home")),
       """Plan: 1 operation(s), 1 task(s), 1 config file(s), base /tmp/home
         |a-very-long-directive target
         |""".stripMargin,
@@ -49,7 +50,7 @@ class PlanOutputSuite extends munit.FunSuite:
   test("an operation with no detail renders no suffix") {
     val plan = Plan(Vector(Operation(Directive.Create, "generated", "", DetailStyle.Parenthesized)))
 
-    assert(PlanOutput.text(plan, 1, 1, "/tmp").linesIterator.toVector.last.endsWith("generated"))
+    assert(PlanOutput.text(plan, PlanSummary(1, 1, "/tmp")).linesIterator.toVector.last.endsWith("generated"))
   }
 
   test("each detail style has its own bracket") {
@@ -60,7 +61,7 @@ class PlanOutputSuite extends munit.FunSuite:
 
   test("an empty plan renders only its header") {
     assertEquals(
-      PlanOutput.text(Plan(), taskCount = 0, configFileCount = 1, base = "/tmp/home"),
+      PlanOutput.text(Plan(), PlanSummary(taskCount = 0, configFileCount = 1, base = "/tmp/home")),
       "Plan: 0 operation(s), 0 task(s), 1 config file(s), base /tmp/home\n",
     )
   }
@@ -82,7 +83,7 @@ class PlanOutputSuite extends munit.FunSuite:
       .sum
 
   test("stylish output draws a box whose borders all line up") {
-    val rendered = PlanOutput.text(threeOperations, 3, 1, "/tmp/home", stylish = true)
+    val rendered = PlanOutput.text(threeOperations, PlanSummary(3, 1, "/tmp/home"), stylish = true)
     val lines    = rendered.linesIterator.toVector
     val box      = lines.filter(line => line.startsWith("╭") || line.startsWith("│") || line.startsWith("╰"))
 
@@ -95,7 +96,8 @@ class PlanOutputSuite extends munit.FunSuite:
   }
 
   test("a long base directory widens the whole box, not just its own line") {
-    val rendered = PlanOutput.text(threeOperations, 3, 1, "/a/very/long/base/directory/path", stylish = true)
+    val rendered =
+      PlanOutput.text(threeOperations, PlanSummary(3, 1, "/a/very/long/base/directory/path"), stylish = true)
     val box      = rendered.linesIterator.toVector.filter(line =>
       line.startsWith("╭") || line.startsWith("│") || line.startsWith("╰"),
     )
@@ -104,7 +106,7 @@ class PlanOutputSuite extends munit.FunSuite:
   }
 
   test("stylish output still lists every operation") {
-    val rendered = PlanOutput.text(threeOperations, 3, 1, "/tmp/home", stylish = true)
+    val rendered = PlanOutput.text(threeOperations, PlanSummary(3, 1, "/tmp/home"), stylish = true)
 
     assert(rendered.contains("linked.txt -> source.txt"), rendered)
     assert(rendered.contains("echo ok [Echo]"), rendered)
@@ -114,7 +116,7 @@ class PlanOutputSuite extends munit.FunSuite:
     val plan = Plan(Vector(Operation(Directive.Link, "linked.txt", "source.txt", DetailStyle.LinkTarget)))
 
     assertEquals(
-      PlanOutput.json(plan, taskCount = 1, configFileCount = 1, base = "/tmp/home"),
+      PlanOutput.json(plan, PlanSummary(taskCount = 1, configFileCount = 1, base = "/tmp/home")),
       """{
         |  "task_count": 1,
         |  "config_file_count": 1,
@@ -135,12 +137,12 @@ class PlanOutputSuite extends munit.FunSuite:
   test("json output is valid json even when a path contains characters that need escaping") {
     val plan = Plan(Vector(Operation(Directive.Link, """a"b\c""", "source", DetailStyle.LinkTarget)))
 
-    val parsed = ujson.read(PlanOutput.json(plan, 1, 1, "/tmp/home"))
+    val parsed = ujson.read(PlanOutput.json(plan, PlanSummary(1, 1, "/tmp/home")))
     assertEquals(parsed("operations")(0)("target").str, """a"b\c""")
   }
 
   test("an empty json plan still carries its counts") {
-    val parsed = ujson.read(PlanOutput.json(Plan(), taskCount = 0, configFileCount = 2, base = "/tmp"))
+    val parsed = ujson.read(PlanOutput.json(Plan(), PlanSummary(taskCount = 0, configFileCount = 2, base = "/tmp")))
 
     assertEquals(parsed("operation_count").num, 0d)
     assertEquals(parsed("config_file_count").num, 2d)
