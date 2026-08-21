@@ -181,9 +181,6 @@ object DirectiveDecoders:
         }
         .fold[Either[DotbotError, Unit]](Right(()))(ConfigDecoder.fail)
 
-  private def validateLinkMap(linkName: String, values: Map[String, ConfigValue]): Either[DotbotError, Unit] =
-    OptionSchema.link.validate(values, OptionContext.Entry(Directive.Link.label, linkName))
-
   /** Check one entry's option map against its directive schema, but only in strict mode. */
   private def validateEntry(
       schema: OptionSchema,
@@ -208,31 +205,19 @@ object DirectiveDecoders:
   ): Either[DotbotError, LinkEntry] =
     target.asMap match
       case Some(targetMap) =>
-        if mode.strict then
-          validateLinkMap(linkName, targetMap).flatMap { _ =>
-            LinkOptions
-              .merge(defaultOptions, targetMap)
-              .left
-              .map(linkType => ConfigDecoder.decodeError(s"link type is not recognized: ${linkType.render}"))
-              .map { options =>
-                LinkEntry.Link(
-                  linkName,
-                  defaultTarget(linkName, targetMap.getOrElse("path", ConfigValue.NullValue)),
-                  options,
-                )
-              }
-          }
-        else
-          LinkOptions.merge(defaultOptions, targetMap) match
-            case Left(linkType) => Right(LinkEntry.InvalidLinkType(linkType))
-            case Right(options) =>
-              Right(
-                LinkEntry.Link(
-                  linkName,
-                  defaultTarget(linkName, targetMap.getOrElse("path", ConfigValue.NullValue)),
-                  options,
-                ),
-              )
+        val entryTarget = defaultTarget(linkName, targetMap.getOrElse("path", ConfigValue.NullValue))
+        for
+          _     <- validateEntry(OptionSchema.link, targetMap, OptionContext.Entry(Directive.Link.label, linkName), mode)
+          entry <- (LinkOptions.merge(defaultOptions, targetMap) match
+                     // Strict mode is validation, where an unrecognized link type is a hard error.
+                     // Executing instead records it as an invalid entry, so the run can report it
+                     // against that one link and carry on with the rest.
+                     case Left(linkType) if mode.strict =>
+                       ConfigDecoder.fail(s"link type is not recognized: ${linkType.render}")
+                     case Left(linkType)                => Right(LinkEntry.InvalidLinkType(linkType))
+                     case Right(options)                => Right(LinkEntry.Link(linkName, entryTarget, options))
+                   ): Either[DotbotError, LinkEntry]
+        yield entry
       case None            =>
         if mode.strict && target != ConfigValue.NullValue && target.asString.isEmpty then
           ConfigDecoder.fail(s"link target for $linkName must be a string or map")
