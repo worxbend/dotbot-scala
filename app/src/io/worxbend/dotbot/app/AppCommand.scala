@@ -25,23 +25,20 @@ final private[app] case class AppCommandContext(
 )
 
 /**
- * Discrete runtime command modes selected from parsed CLI mode.
+ * Runs the command the user asked for and reports the process exit code.
+ *
+ * The choice of command is `RunMode`, which the CLI layer produces from the parsed arguments;
+ * this object is only the "what to do about it" half. Keeping the dispatch here rather than as a
+ * method on `RunMode` keeps that enum free of the interpreter, logger, and stream types -- it
+ * stays plain data describing what was asked for.
  */
-private[app] enum AppCommand:
-  case Apply
-  case Validate
-  case Plan(format: OutputFormat)
-  case InvalidPlanOutput(value: String)
-
-  /**
-   * Execute this command and return a process exit code.
-   */
-  def execute(ctx: AppCommandContext): Int =
-    this match
-      case AppCommand.Apply                    => applyConfig(ctx)
-      case AppCommand.Validate                 => validateConfig(ctx)
-      case AppCommand.Plan(format)             => printPlan(ctx, format)
-      case AppCommand.InvalidPlanOutput(value) => invalidPlanOutput(ctx, value)
+private[app] object AppCommand:
+  def execute(mode: RunMode, ctx: AppCommandContext): Int =
+    mode match
+      case RunMode.Apply                    => applyConfig(ctx)
+      case RunMode.Validate                 => validateConfig(ctx)
+      case RunMode.Plan(format)             => printPlan(ctx, format)
+      case RunMode.InvalidPlanOutput(value) => invalidPlanOutput(ctx, value)
 
   private def applyConfig(ctx: AppCommandContext): Int =
     val mode = if ctx.options.dryRun then "dry-run" else "apply"
@@ -95,17 +92,3 @@ private[app] enum AppCommand:
         ctx.logger.error(error.render)
         1
       case Right(plan) => render(plan)
-
-/**
- * Command construction helpers.
- */
-private[app] object AppCommand:
-  /**
-   * Build command variant from a `RunMode`.
-   */
-  def from(mode: RunMode): AppCommand =
-    mode match
-      case RunMode.Apply                    => AppCommand.Apply
-      case RunMode.Validate                 => AppCommand.Validate
-      case RunMode.Plan(format)             => AppCommand.Plan(format)
-      case RunMode.InvalidPlanOutput(value) => AppCommand.InvalidPlanOutput(value)

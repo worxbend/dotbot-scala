@@ -140,7 +140,7 @@ object DotbotApp:
     val stylish     = symbolsEnabled(options, deps.capabilities)
     val interpreter = Wiring.interpreter(loaded.base, options, logger, deps)
     val context     = AppCommandContext(options, stdout, logger, interpreter, loaded, stylish)
-    AppCommand.from(options.mode).execute(context)
+    AppCommand.execute(options.mode, context)
 
   private def loggerFor(
       stdout: PrintStream,

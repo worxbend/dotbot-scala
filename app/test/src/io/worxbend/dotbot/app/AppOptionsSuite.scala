@@ -55,13 +55,6 @@ class AppOptionsSuite extends munit.FunSuite:
     assertEquals(mixed, TerminalCapabilities(color = false, symbols = true))
   }
 
-  test("each run mode maps to its command") {
-    assertEquals(AppCommand.from(RunMode.Apply), AppCommand.Apply)
-    assertEquals(AppCommand.from(RunMode.Validate), AppCommand.Validate)
-    assertEquals(AppCommand.from(RunMode.Plan(OutputFormat.Json)), AppCommand.Plan(OutputFormat.Json))
-    assertEquals(AppCommand.from(RunMode.InvalidPlanOutput("yaml")), AppCommand.InvalidPlanOutput("yaml"))
-  }
-
   test("an output format argument is recognized, defaulted, or held as invalid") {
     assertEquals(OutputFormat.fromString("text"), OutputFormatArgument.Valid(OutputFormat.Text))
     assertEquals(OutputFormat.fromString("json"), OutputFormatArgument.Valid(OutputFormat.Json))
