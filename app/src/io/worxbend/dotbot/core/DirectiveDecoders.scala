@@ -98,31 +98,27 @@ object DirectiveDecoders:
       defaultMode: FileMode,
       mode: DecodeMode,
   ): Either[DotbotError, CreateSpec] =
-    val bad =
-      if !mode.strict then None
-      else
-        fields.entries.collectFirst {
-          case (path, value) if value != ConfigValue.NullValue && value.asMap.isEmpty =>
-            s"create directive options for $path must be a map"
-        }
-
-    bad match
-      case Some(error) => ConfigDecoder.fail(error)
-      case None        =>
-        EitherUtil
-          .traverse(fields.keys) { path =>
-            val local = fields(path).asMap.getOrElse(Map.empty)
-            for
-              _         <- validateEntry(OptionSchema.create, local, OptionContext.Entry(Directive.Create.label, path), mode)
-              entryMode <- decodeFileMode(
-                             local.get("mode"),
-                             defaultMode,
-                             s"create mode for $path must be an octal string or number",
-                             mode,
-                           )
-            yield CreateEntry.Path(path, entryMode)
-          }
-          .map(entries => CreateSpec(entries))
+    for
+      _       <- requireOptionMaps(fields, Directive.Create, mode)
+      entries <- EitherUtil.traverse(fields.keys) { path =>
+                   val local = fields(path).asMap.getOrElse(Map.empty)
+                   for
+                     _         <-
+                       validateEntry(
+                         OptionSchema.create,
+                         local,
+                         OptionContext.Entry(Directive.Create.label, path),
+                         mode,
+                       )
+                     entryMode <- decodeFileMode(
+                                    local.get("mode"),
+                                    defaultMode,
+                                    s"create mode for $path must be an octal string or number",
+                                    mode,
+                                  )
+                   yield CreateEntry.Path(path, entryMode)
+                 }
+    yield CreateSpec(entries)
 
   private def decodeCleanArray(
       items: Vector[ConfigValue],
@@ -149,30 +145,41 @@ object DirectiveDecoders:
   ): Either[DotbotError, CleanSpec] =
     val defaultForce     = cleanDefaults.boolValue("force", false)
     val defaultRecursive = cleanDefaults.boolValue("recursive", false)
-    val bad              =
-      if !mode.strict then None
-      else
-        fields.entries.collectFirst {
-          case (target, value) if value != ConfigValue.NullValue && value.asMap.isEmpty =>
-            s"clean directive options for $target must be a map"
-        }
+    for
+      _       <- requireOptionMaps(fields, Directive.Clean, mode)
+      entries <- EitherUtil.traverse(fields.keys) { target =>
+                   val local = fields(target).asMap.getOrElse(Map.empty)
+                   validateEntry(OptionSchema.clean, local, OptionContext.Entry(Directive.Clean.label, target), mode)
+                     .map { _ =>
+                       CleanEntry.Target(
+                         target,
+                         local.boolValue("force", defaultForce),
+                         local.boolValue("recursive", defaultRecursive),
+                       )
+                     }
+                 }
+    yield CleanSpec(entries)
 
-    bad match
-      case Some(error) => ConfigDecoder.fail(error)
-      case None        =>
-        EitherUtil
-          .traverse(fields.keys) { target =>
-            val local = fields(target).asMap.getOrElse(Map.empty)
-            validateEntry(OptionSchema.clean, local, OptionContext.Entry(Directive.Clean.label, target), mode).map {
-              _ =>
-                CleanEntry.Target(
-                  target,
-                  local.boolValue("force", defaultForce),
-                  local.boolValue("recursive", defaultRecursive),
-                )
-            }
-          }
-          .map(entries => CleanSpec(entries))
+  /**
+   * In strict mode, reject an entry whose options are written as something other than a map.
+   *
+   * `create` and `clean` both accept `path: null` to mean "no options", so a null value passes;
+   * anything else that is not a map is a mistake worth reporting by name rather than silently
+   * treating as empty options.
+   */
+  private def requireOptionMaps(
+      fields: ConfigFields,
+      directive: Directive,
+      mode: DecodeMode,
+  ): Either[DotbotError, Unit] =
+    if !mode.strict then Right(())
+    else
+      fields.entries
+        .collectFirst {
+          case (key, value) if value != ConfigValue.NullValue && value.asMap.isEmpty =>
+            s"${directive.label} directive options for $key must be a map"
+        }
+        .fold[Either[DotbotError, Unit]](Right(()))(ConfigDecoder.fail)
 
   private def validateLinkMap(linkName: String, values: Map[String, ConfigValue]): Either[DotbotError, Unit] =
     OptionSchema.link.validate(values, OptionContext.Entry(Directive.Link.label, linkName))
