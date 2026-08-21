@@ -144,7 +144,7 @@ class InterpreterSuite extends munit.FunSuite:
 
     override def plan(spec: CreateSpec): Vector[Operation] =
       plans0.incrementAndGet()
-      Vector(Operation(spec.directive, "planned"))
+      Vector(Operation(Directive.Create, "planned"))
 
     def execute(_ctx: RuntimeContext, _spec: CreateSpec): Outcome =
       executions0.incrementAndGet()

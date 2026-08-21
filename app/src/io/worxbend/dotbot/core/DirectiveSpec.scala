@@ -1,7 +1,6 @@
 package io.worxbend.dotbot.core
 
-sealed trait DirectiveSpec:
-  def directive: Directive
+sealed trait DirectiveSpec
 
 enum DecodeMode:
   case Validate, Execute
@@ -31,8 +30,7 @@ enum CreateEntry:
   /** An entry that could not be understood. `description` quotes what the user wrote. */
   case Invalid(description: String)
 
-final case class CreateSpec(entries: Vector[CreateEntry]) extends DirectiveSpec:
-  def directive: Directive = Directive.Create
+final case class CreateSpec(entries: Vector[CreateEntry]) extends DirectiveSpec
 
 enum CleanEntry:
   case Target(path: String, force: Boolean, recursive: Boolean)
@@ -40,16 +38,14 @@ enum CleanEntry:
   /** An entry that could not be understood. `description` quotes what the user wrote. */
   case Invalid(description: String)
 
-final case class CleanSpec(entries: Vector[CleanEntry]) extends DirectiveSpec:
-  def directive: Directive = Directive.Clean
+final case class CleanSpec(entries: Vector[CleanEntry]) extends DirectiveSpec
 
 enum LinkEntry:
   case Link(rawLinkName: String, target: String, options: LinkOptions)
   case InvalidLinkType(linkType: UnknownLinkType)
 
 final case class LinkSpec(defaultLinkTypeError: Option[UnknownLinkType], entries: Vector[LinkEntry])
-    extends DirectiveSpec:
-  def directive: Directive = Directive.Link
+    extends DirectiveSpec
 
 enum ShellEntry:
   case Command(
@@ -64,5 +60,4 @@ enum ShellEntry:
   /** An entry that could not be understood. `description` quotes what the user wrote. */
   case Invalid(description: String)
 
-final case class ShellSpec(entries: Vector[ShellEntry]) extends DirectiveSpec:
-  def directive: Directive = Directive.Shell
+final case class ShellSpec(entries: Vector[ShellEntry]) extends DirectiveSpec

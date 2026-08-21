@@ -17,15 +17,12 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
     yield Plan(resolved.flatMap(_.plan))
 
   private trait ResolvedAction:
-    def directive: Directive
     def plan: Vector[Operation]
     def execute(ctx: RuntimeContext): Outcome
 
   private object ResolvedAction:
     def apply(handler: DirectiveHandler)(spec: handler.Spec): ResolvedAction =
       new ResolvedAction:
-        def directive: Directive = handler.directive
-
         def plan: Vector[Operation] =
           handler.plan(spec)
 
