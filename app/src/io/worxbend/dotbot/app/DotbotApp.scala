@@ -1,6 +1,7 @@
 package io.worxbend.dotbot.app
 
 import io.worxbend.dotbot.config.ConfigReader
+import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.Directive
 import io.worxbend.dotbot.core.Filesystem
 import io.worxbend.dotbot.core.PathResolver
@@ -86,50 +87,50 @@ object DotbotApp:
     val capabilities = effectiveCapabilities(options, deps.capabilities)
     val logger       = Logger.split(stdout, stderr, minimumLevel(options), capabilities)
     load(options, deps, logger) match
-      case Left(exitCode) => exitCode
-      case Right(loaded)  => execute(options, stdout, deps, logger, capabilities, loaded)
+      case Left(error)   =>
+        logger.error(error.render)
+        1
+      case Right(loaded) => execute(options, stdout, deps, logger, capabilities, loaded)
 
-  private def load(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, LoadedConfig] =
+  /**
+   * Everything that has to succeed before a command can run: the flags make sense, the config
+   * files parse, and the base directory exists.
+   *
+   * Failures come back as `DotbotError` values rather than being logged here. `run` renders them
+   * in one place, which is the same rule the rest of the pipeline follows -- an error describes
+   * what went wrong, and only the edge decides how it is shown and what the process exits with.
+   * `logger` is still needed for the one thing here that is a warning, not a failure.
+   */
+  private def load(options: AppOptions, deps: AppDependencies, logger: Logger): Either[DotbotError, LoadedConfig] =
     for
-      _     <- validateStartupOptions(options, logger)
-      tasks <- readTasks(options, deps, logger)
+      _     <- validateStartupOptions(options)
+      tasks <- deps.reader.read(options.configFiles)
       _      = warnIfNoTasks(options, tasks, logger)
-      base  <- resolveBaseDirectory(options, deps, logger)
+      base  <- resolveBaseDirectory(options, deps)
     yield LoadedConfig(tasks, base)
 
-  private def validateStartupOptions(options: AppOptions, logger: Logger): Either[Int, Unit] =
+  private def validateStartupOptions(options: AppOptions): Either[DotbotError, Unit] =
     if options.forceColor && options.noColor then
-      logger.error("`--force-color` and `--no-color` cannot both be provided")
-      Left(1)
+      Left(DotbotError.Message("`--force-color` and `--no-color` cannot both be provided"))
     else if options.forceEmoji && options.noEmoji then
-      logger.error("`--emoji` and `--no-emoji` cannot both be provided")
-      Left(1)
-    else if options.configFiles.isEmpty then
-      logger.error("No configuration file specified")
-      Left(1)
+      Left(DotbotError.Message("`--emoji` and `--no-emoji` cannot both be provided"))
+    else if options.configFiles.isEmpty then Left(DotbotError.Message("No configuration file specified"))
     else Right(())
-
-  private def readTasks(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, Vector[Task]] =
-    deps.reader.read(options.configFiles) match
-      case Left(error)  =>
-        logger.error(error.render)
-        Left(1)
-      case Right(tasks) => Right(tasks)
 
   private def warnIfNoTasks(options: AppOptions, tasks: Vector[Task], logger: Logger): Unit =
     if tasks.isEmpty && options.mode != RunMode.Plan(OutputFormat.Json) then
       logger.warning("No tasks given in configuration, no work to do")
 
-  private def resolveBaseDirectory(options: AppOptions, deps: AppDependencies, logger: Logger): Either[Int, String] =
+  private def resolveBaseDirectory(options: AppOptions, deps: AppDependencies): Either[DotbotError, String] =
     val base =
       if options.baseDirectory.isBlank then PathUtil.dirname(deps.paths.abs(options.configFiles.head))
       else deps.paths.abs(options.baseDirectory)
 
-    deps.fs.stat(base) match
-      case Left(error) =>
-        logger.error(s"nonexistent base directory: ${error.message}")
-        Left(1)
-      case Right(_)    => Right(base)
+    deps.fs
+      .stat(base)
+      .left
+      .map(error => DotbotError.Message(s"nonexistent base directory: ${error.message}"))
+      .map(_ => base)
 
   private def execute(
       options: AppOptions,
