@@ -60,6 +60,3 @@ object ConfigDecoder:
     values.get(name) match
       case Some(value) => decode(value).map(Some(_))
       case None        => Right(None)
-
-  def oneOf[A](value: ConfigValue)(decoders: (ConfigValue => Option[A])*): Option[A] =
-    decoders.iterator.flatMap(decode => decode(value)).nextOption()

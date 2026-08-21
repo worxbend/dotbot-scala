@@ -270,25 +270,29 @@ object DirectiveDecoders:
           )
         }
 
+  /**
+   * The command and description of a shell item, whichever of the three accepted forms it uses.
+   *
+   * A shell item may be written as a bare string, as a map with `command` and `description` keys,
+   * or as a `[command, description]` list. `None` means it was none of those, which the caller
+   * turns into either a hard error (validating) or a recorded invalid entry (running).
+   */
   private def shellCommandSpec(item: ConfigValue): Option[(String, String)] =
-    ConfigDecoder.oneOf(item)(
-      _.asString.map(_ -> ""),
-      shellMapCommandSpec,
-      _.asArray.flatMap { list =>
-        list.headOption.flatMap(_.asString).map { command =>
-          command -> list.drop(1).headOption.flatMap(_.asString).getOrElse("")
-        }
-      },
-    )
+    item.asString
+      .map(_ -> "")
+      .orElse(shellMapCommandSpec(item))
+      .orElse(shellListCommandSpec(item))
 
   private def shellMapCommandSpec(item: ConfigValue): Option[(String, String)] =
     item.asMap.flatMap { map =>
-      ConfigDecoder
-        .field(map, "command", "shell directive item must include a command") { value =>
-          value.asString.toRight(ConfigDecoder.decodeError("shell directive item must include a command"))
-        }
-        .toOption
-        .map { command =>
-          command -> map.get("description").flatMap(_.asString).getOrElse("")
-        }
+      map.get("command").flatMap(_.asString).map { command =>
+        command -> map.get("description").flatMap(_.asString).getOrElse("")
+      }
+    }
+
+  private def shellListCommandSpec(item: ConfigValue): Option[(String, String)] =
+    item.asArray.flatMap { list =>
+      list.headOption.flatMap(_.asString).map { command =>
+        command -> list.drop(1).headOption.flatMap(_.asString).getOrElse("")
+      }
     }
