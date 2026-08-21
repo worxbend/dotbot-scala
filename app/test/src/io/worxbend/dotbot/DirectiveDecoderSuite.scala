@@ -1,5 +1,7 @@
 package io.worxbend.dotbot
 
+import io.worxbend.dotbot.core.CleanOptions
+import io.worxbend.dotbot.core.ShellEntryOptions
 import io.worxbend.dotbot.core.CleanSpec
 import io.worxbend.dotbot.core.CleanEntry
 import io.worxbend.dotbot.core.ConfigDecoder
@@ -100,8 +102,8 @@ class DirectiveDecoderSuite extends munit.FunSuite:
       Right(
         CleanSpec(
           Vector(
-            CleanEntry.Target("logs", force = true, recursive = true),
-            CleanEntry.Target("cache", force = false, recursive = true),
+            CleanEntry.Target("logs", CleanOptions(force = true, recursive = true)),
+            CleanEntry.Target("cache", CleanOptions(force = false, recursive = true)),
           ),
         ),
       ),
@@ -258,18 +260,12 @@ class DirectiveDecoderSuite extends munit.FunSuite:
             ShellEntry.Command(
               command = "echo inherited",
               description = "",
-              quiet = true,
-              stdin = false,
-              stdout = true,
-              stderr = false,
+              options = ShellEntryOptions(quiet = true, stdin = false, stdout = true, stderr = false),
             ),
             ShellEntry.Command(
               command = "echo local",
               description = "Local command",
-              quiet = false,
-              stdin = false,
-              stdout = true,
-              stderr = true,
+              options = ShellEntryOptions(quiet = false, stdin = false, stdout = true, stderr = true),
             ),
           ),
         ),

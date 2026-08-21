@@ -1,5 +1,7 @@
 package io.worxbend.dotbot
 
+import io.worxbend.dotbot.core.CleanOptions
+import io.worxbend.dotbot.core.ShellEntryOptions
 import io.worxbend.dotbot.core.CleanEntry
 import io.worxbend.dotbot.core.CleanHandler
 import io.worxbend.dotbot.core.CleanSpec
@@ -62,7 +64,7 @@ class HandlerUnitSuite extends munit.FunSuite:
       ),
     )
     val runtime    = TestRuntime(baseDirectory = base, fs = fs)
-    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = false)))
+    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", CleanOptions(force = false, recursive = false))))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(!fs.lexists(brokenLink))
@@ -87,7 +89,7 @@ class HandlerUnitSuite extends munit.FunSuite:
       ),
     )
     val runtime    = TestRuntime(baseDirectory = base, fs = fs)
-    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = false)))
+    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", CleanOptions(force = false, recursive = false))))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.lexists(brokenLink))
@@ -100,7 +102,7 @@ class HandlerUnitSuite extends munit.FunSuite:
     )
 
     val forceRuntime = TestRuntime(baseDirectory = base, fs = fs)
-    val forceSpec    = CleanSpec(Vector(CleanEntry.Target("stale", force = true, recursive = false)))
+    val forceSpec    = CleanSpec(Vector(CleanEntry.Target("stale", CleanOptions(force = true, recursive = false))))
 
     assertEquals(CleanHandler().execute(forceRuntime.ctx, forceSpec), Outcome.Ok)
     assert(!fs.lexists(brokenLink))
@@ -121,7 +123,7 @@ class HandlerUnitSuite extends munit.FunSuite:
       ),
     )
     val runtime    = TestRuntime(baseDirectory = base, fs = fs)
-    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", force = false, recursive = true)))
+    val spec       = CleanSpec(Vector(CleanEntry.Target("stale", CleanOptions(force = false, recursive = true))))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(!fs.lexists(brokenLink))
@@ -138,7 +140,7 @@ class HandlerUnitSuite extends munit.FunSuite:
     val base    = "/workspace"
     val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec    = CleanSpec(Vector(CleanEntry.Target("missing", force = false, recursive = false)))
+    val spec    = CleanSpec(Vector(CleanEntry.Target("missing", CleanOptions(force = false, recursive = false))))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assertEquals(fs.removeCalls, Vector.empty)
@@ -164,10 +166,7 @@ class HandlerUnitSuite extends munit.FunSuite:
         ShellEntry.Command(
           command = "echo hi",
           description = "Say hello",
-          quiet = false,
-          stdin = true,
-          stdout = false,
-          stderr = true,
+          options = ShellEntryOptions(quiet = false, stdin = true, stdout = false, stderr = true),
         ),
       ),
     )
@@ -203,10 +202,7 @@ class HandlerUnitSuite extends munit.FunSuite:
         ShellEntry.Command(
           command = "secret command",
           description = "Quiet setup",
-          quiet = true,
-          stdin = false,
-          stdout = false,
-          stderr = false,
+          options = ShellEntryOptions(quiet = true, stdin = false, stdout = false, stderr = false),
         ),
       ),
     )
@@ -231,10 +227,7 @@ class HandlerUnitSuite extends munit.FunSuite:
         ShellEntry.Command(
           command = "sleep 5",
           description = "",
-          quiet = false,
-          stdin = false,
-          stdout = true,
-          stderr = false,
+          options = ShellEntryOptions(quiet = false, stdin = false, stdout = true, stderr = false),
         ),
       ),
     )

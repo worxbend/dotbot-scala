@@ -125,14 +125,13 @@ object DirectiveDecoders:
       cleanDefaults: Map[String, ConfigValue],
       mode: DecodeMode,
   ): Either[DotbotError, CleanSpec] =
-    val defaultForce     = cleanDefaults.boolValue("force", false)
-    val defaultRecursive = cleanDefaults.boolValue("recursive", false)
+    val cleanOptions = CleanOptions.fromDefaults(cleanDefaults)
     if mode.strict && items.exists(_.asString.isEmpty) then ConfigDecoder.fail("clean directive item must be a string")
     else
       Right(
         CleanSpec(
           items.map {
-            case ConfigValue.StringValue(target) => CleanEntry.Target(target, defaultForce, defaultRecursive)
+            case ConfigValue.StringValue(target) => CleanEntry.Target(target, cleanOptions)
             case other                           => CleanEntry.Invalid(other.describe)
           },
         ),
@@ -143,19 +142,14 @@ object DirectiveDecoders:
       cleanDefaults: Map[String, ConfigValue],
       mode: DecodeMode,
   ): Either[DotbotError, CleanSpec] =
-    val defaultForce     = cleanDefaults.boolValue("force", false)
-    val defaultRecursive = cleanDefaults.boolValue("recursive", false)
+    val cleanOptions = CleanOptions.fromDefaults(cleanDefaults)
     for
       _       <- requireOptionMaps(fields, Directive.Clean, mode)
       entries <- EitherUtil.traverse(fields.keys) { target =>
                    val local = fields(target).asMap.getOrElse(Map.empty)
                    validateEntry(OptionSchema.clean, local, OptionContext.Entry(Directive.Clean.label, target), mode)
                      .map { _ =>
-                       CleanEntry.Target(
-                         target,
-                         local.boolValue("force", defaultForce),
-                         local.boolValue("recursive", defaultRecursive),
-                       )
+                       CleanEntry.Target(target, CleanOptions.merge(cleanOptions, local))
                      }
                  }
     yield CleanSpec(entries)
@@ -246,11 +240,14 @@ object DirectiveDecoders:
   ): Either[DotbotError, ShellSpec] =
     if mode.strict && items.exists(shellCommandSpec(_).isEmpty) then
       ConfigDecoder.fail("shell directive item must include a command")
-    else EitherUtil.traverse(items)(decodeShellItem(_, defaults, mode)).map(entries => ShellSpec(entries))
+    else
+      // Built once here rather than per item: every entry starts from the same defaults.
+      val shellDefaults = ShellEntryOptions.fromDefaults(defaults)
+      EitherUtil.traverse(items)(decodeShellItem(_, shellDefaults, mode)).map(entries => ShellSpec(entries))
 
   private def decodeShellItem(
       item: ConfigValue,
-      defaults: Map[String, ConfigValue],
+      defaults: ShellEntryOptions,
       mode: DecodeMode,
   ): Either[DotbotError, ShellEntry] =
     shellCommandSpec(item) match
@@ -260,14 +257,7 @@ object DirectiveDecoders:
         // no keys to check.
         val local = item.asMap.getOrElse(Map.empty)
         validateEntry(OptionSchema.shell, local, OptionContext.Entry(Directive.Shell.label, command), mode).map { _ =>
-          ShellEntry.Command(
-            command = command,
-            description = message,
-            quiet = local.boolValue("quiet", defaults.boolValue("quiet", false)),
-            stdin = local.boolValue("stdin", defaults.boolValue("stdin", false)),
-            stdout = local.boolValue("stdout", defaults.boolValue("stdout", false)),
-            stderr = local.boolValue("stderr", defaults.boolValue("stderr", false)),
-          )
+          ShellEntry.Command(command, message, ShellEntryOptions.merge(defaults, local))
         }
 
   /**

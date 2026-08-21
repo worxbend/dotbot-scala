@@ -1,5 +1,6 @@
 package io.worxbend.dotbot
 
+import io.worxbend.dotbot.core.CleanOptions
 import io.worxbend.dotbot.core.CleanEntry
 import io.worxbend.dotbot.core.CleanHandler
 import io.worxbend.dotbot.core.CleanSpec
@@ -63,7 +64,7 @@ class HandlerRegressionSuite extends munit.FunSuite:
       // If the entry name were expanded again, this value would be substituted for it.
       paths = TestEnvironment.resolver(Map("cache" -> "/somewhere/else")),
     )
-    val spec    = CleanSpec(Vector(CleanEntry.Target(base, force = false, recursive = true)))
+    val spec    = CleanSpec(Vector(CleanEntry.Target(base, CleanOptions(force = false, recursive = true))))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
 
@@ -75,7 +76,7 @@ class HandlerRegressionSuite extends munit.FunSuite:
   test("an unset variable in a clean target does not turn it into the filesystem root") {
     val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory, "/" -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
-    val spec    = CleanSpec(Vector(CleanEntry.Target("$XDG_CONFIG_HOME", force = true, recursive = true)))
+    val spec    = CleanSpec(Vector(CleanEntry.Target("$XDG_CONFIG_HOME", CleanOptions(force = true, recursive = true))))
 
     assertEquals(CleanHandler().execute(runtime.ctx, spec), Outcome.Ok)
 

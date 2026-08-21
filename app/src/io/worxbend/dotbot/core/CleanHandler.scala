@@ -8,16 +8,16 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
     DirectiveDecoders.cleanSpecDecoder
 
   override def plan(spec: CleanSpec): Vector[Operation] =
-    spec.entries.collect { case CleanEntry.Target(target, _, _) => Operation(Directive.Clean, target) }
+    spec.entries.collect { case CleanEntry.Target(target, _) => Operation(Directive.Clean, target) }
 
   protected override def entries(spec: CleanSpec): Vector[CleanEntry] =
     spec.entries
 
   protected override def executeEntry(ctx: RuntimeContext, entry: CleanEntry): Outcome =
     entry match
-      case CleanEntry.Target(target, force, recursive) =>
-        cleanDirectory(ctx, ctx.paths.absFrom(ctx.baseDirectory, target), target, force, recursive)
-      case CleanEntry.Invalid(description)             =>
+      case CleanEntry.Target(target, options) =>
+        cleanDirectory(ctx, ctx.paths.absFrom(ctx.baseDirectory, target), target, options)
+      case CleanEntry.Invalid(description)    =>
         ctx.log.warning(s"Skipping clean entry that is not a path: $description")
         Outcome.Failed
 
@@ -39,8 +39,7 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
       ctx: RuntimeContext,
       dir: String,
       reported: String,
-      force: Boolean,
-      recursive: Boolean,
+      options: CleanOptions,
   ): Outcome =
     if !ctx.fs.isDir(dir) then
       ctx.log.debug(s"Ignoring nonexistent directory $reported")
@@ -50,12 +49,12 @@ final class CleanHandler extends BatchedDirectiveHandler[CleanSpec, CleanEntry]:
         names.foldLeft(Outcome.Ok) { (outcome, name) =>
           val path             = PathUtil.join(dir, name)
           val recursiveOutcome =
-            if recursive && ctx.fs.isDir(path) && !ctx.fs.isSymlink(path) then
-              cleanDirectory(ctx, path, path, force, recursive)
+            if options.recursive && ctx.fs.isDir(path) && !ctx.fs.isSymlink(path) then
+              cleanDirectory(ctx, path, path, options)
             else Outcome.Ok
 
           val removeOutcome =
-            if !ctx.fs.exists(path) && ctx.fs.isSymlink(path) then removeBrokenLink(ctx, path, force)
+            if !ctx.fs.exists(path) && ctx.fs.isSymlink(path) then removeBrokenLink(ctx, path, options.force)
             else Outcome.Ok
 
           outcome.combine(recursiveOutcome).combine(removeOutcome)

@@ -8,7 +8,7 @@ final class ShellHandler extends BatchedDirectiveHandler[ShellSpec, ShellEntry]:
     DirectiveDecoders.shellSpecDecoder
 
   override def plan(spec: ShellSpec): Vector[Operation] =
-    spec.entries.collect { case ShellEntry.Command(command, description, _, _, _, _) =>
+    spec.entries.collect { case ShellEntry.Command(command, description, _) =>
       Operation(Directive.Shell, command, description, DetailStyle.ShellDescription)
     }
 
@@ -31,7 +31,7 @@ final class ShellHandler extends BatchedDirectiveHandler[ShellSpec, ShellEntry]:
   private def runCommand(ctx: RuntimeContext, command: ShellEntry.Command): Outcome =
     val prefix = if ctx.options.dryRun then "Would run command " else ""
 
-    if command.quiet then
+    if command.options.quiet then
       if command.description.nonEmpty then ctx.log.info(prefix + command.description)
     else if command.description.isEmpty then ctx.log.action(prefix + command.command)
     else ctx.log.action(s"$prefix${command.description} [${command.command}]")
@@ -42,9 +42,9 @@ final class ShellHandler extends BatchedDirectiveHandler[ShellSpec, ShellEntry]:
         command.command,
         ShellOptions(
           cwd = ctx.baseDirectory,
-          enableStdin = command.stdin,
-          enableStdout = ctx.options.verbose > 1 || command.stdout,
-          enableStderr = ctx.options.verbose > 1 || command.stderr,
+          enableStdin = command.options.stdin,
+          enableStdout = ctx.options.verbose > 1 || command.options.stdout,
+          enableStderr = ctx.options.verbose > 1 || command.options.stderr,
           timeout = ctx.options.shellTimeout,
         ),
         _ => s"Command [${command.command}] failed",

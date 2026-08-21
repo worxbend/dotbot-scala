@@ -1,5 +1,6 @@
 package io.worxbend.dotbot
 
+import io.worxbend.dotbot.core.ShellEntryOptions
 import io.worxbend.dotbot.core.CleanEntry
 import io.worxbend.dotbot.core.CleanHandler
 import io.worxbend.dotbot.core.CleanSpec
@@ -54,9 +55,14 @@ class InvalidEntrySuite extends munit.FunSuite:
     val runtime = TestRuntime()
     val spec    = ShellSpec(
       Vector(
-        ShellEntry.Command("echo first", "", quiet = false, stdin = false, stdout = false, stderr = false),
+        ShellEntry
+          .Command("echo first", "", ShellEntryOptions(quiet = false, stdin = false, stdout = false, stderr = false)),
         ShellEntry.Invalid("null"),
-        ShellEntry.Command("echo last", "", quiet = false, stdin = false, stdout = false, stderr = false),
+        ShellEntry.Command(
+          "echo last",
+          "",
+          ShellEntryOptions(quiet = false, stdin = false, stdout = false, stderr = false),
+        ),
       ),
     )
 

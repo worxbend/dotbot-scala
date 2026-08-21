@@ -33,7 +33,7 @@ enum CreateEntry:
 final case class CreateSpec(entries: Vector[CreateEntry]) extends DirectiveSpec
 
 enum CleanEntry:
-  case Target(path: String, force: Boolean, recursive: Boolean)
+  case Target(path: String, options: CleanOptions)
 
   /** An entry that could not be understood. `description` quotes what the user wrote. */
   case Invalid(description: String)
@@ -48,14 +48,7 @@ final case class LinkSpec(defaultLinkTypeError: Option[UnknownLinkType], entries
     extends DirectiveSpec
 
 enum ShellEntry:
-  case Command(
-      command: String,
-      description: String,
-      quiet: Boolean,
-      stdin: Boolean,
-      stdout: Boolean,
-      stderr: Boolean,
-  )
+  case Command(command: String, description: String, options: ShellEntryOptions)
 
   /** An entry that could not be understood. `description` quotes what the user wrote. */
   case Invalid(description: String)
