@@ -6,11 +6,11 @@ import scala.util.boundary.break
 final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveHandler]):
   def dispatch(tasks: Vector[Task]): Either[DotbotError, Outcome] =
     boundary:
-      val (outcome, _) =
-        actions(tasks).foldLeft(Outcome.Ok -> DirectiveDefaults.empty) { case ((outcome, defaults), action) =>
-          dispatchAction(outcome, defaults, action)
+      val finalState =
+        actions(tasks).foldLeft(DispatchState(Outcome.Ok, DirectiveDefaults.empty)) { (state, action) =>
+          dispatchAction(state, action)
         }
-      Right(outcome)
+      Right(finalState.outcome)
 
   def plan(tasks: Vector[Task]): Either[DotbotError, Plan] =
     for resolved <- resolvePlan(tasks)
@@ -29,6 +29,10 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
         def execute(ctx: RuntimeContext): Outcome =
           handler.execute(ctx, spec)
 
+  /** What the execute pass carries from one action to the next: results so far, defaults in force. */
+  final private case class DispatchState(outcome: Outcome, defaults: DirectiveDefaults)
+
+  /** The same, for the plan pass, which collects resolved actions instead of running them. */
   final private case class ResolveState(defaults: DirectiveDefaults, actions: List[ResolvedAction])
 
   private enum ActionStep:
@@ -45,47 +49,45 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       .map(_.actions.reverse.toVector)
 
   private def dispatchAction(
-      outcome: Outcome,
-      defaults: DirectiveDefaults,
+      state: DispatchState,
       action: Action,
-  )(using boundary.Label[Either[DotbotError, Outcome]]): (Outcome, DirectiveDefaults) =
+  )(using boundary.Label[Either[DotbotError, Outcome]]): DispatchState =
     actionStep(action) match
       case ActionStep.Skip(directive)           =>
         ctx.log.info(s"Skipping action ${directive.label}")
-        outcome -> defaults
+        state
       case ActionStep.UpdateDefaults(updated)   =>
-        outcome -> updated
+        state.copy(defaults = updated)
       case ActionStep.MissingHandler(directive) =>
         ctx.log.error(s"Action ${directive.label} not handled")
         if ctx.options.exitOnFailure then break(Right(Outcome.Failed): Either[DotbotError, Outcome])
-        outcome.combine(Outcome.Failed) -> defaults
+        state.copy(outcome = state.outcome.combine(Outcome.Failed))
       case ActionStep.Handle(handler)           =>
-        dispatchHandledAction(outcome, defaults, action, handler)
+        dispatchHandledAction(state, action, handler)
 
   private def dispatchHandledAction(
-      outcome: Outcome,
-      defaults: DirectiveDefaults,
+      state: DispatchState,
       action: Action,
       handler: DirectiveHandler,
-  )(using boundary.Label[Either[DotbotError, Outcome]]): (Outcome, DirectiveDefaults) =
+  )(using boundary.Label[Either[DotbotError, Outcome]]): DispatchState =
     val directive = action.directive
     if ctx.options.dryRun && !handler.supportsDryRun then
       ctx.log.action(s"Skipping dry-run-unaware handler ${handler.getClass.getSimpleName}")
-      outcome -> defaults
+      state
     else
-      val localOutcome = resolveAction(handler, action.data, defaults, DecodeMode.Execute).map(_.execute(ctx))
-      localOutcome match
+      val executed = resolveAction(handler, action.data, state.defaults, DecodeMode.Execute).map(_.execute(ctx))
+      executed match
         case Left(error) if ctx.options.exitOnFailure =>
           break(Left(DotbotError.Execution(directive, error)): Either[DotbotError, Outcome])
         case Left(error)                              =>
           ctx.log.error(s"An error was encountered while executing action ${directive.label}")
           ctx.log.debug(error.render)
-          outcome.combine(Outcome.Failed) -> defaults
-        case Right(localOutcome)                      =>
-          if !localOutcome.successful && ctx.options.exitOnFailure then
+          state.copy(outcome = state.outcome.combine(Outcome.Failed))
+        case Right(entryOutcome)                      =>
+          if !entryOutcome.successful && ctx.options.exitOnFailure then
             ctx.log.error(s"Action ${directive.label} failed")
             break(Right(Outcome.Failed): Either[DotbotError, Outcome])
-          outcome.combine(localOutcome) -> defaults
+          state.copy(outcome = state.outcome.combine(entryOutcome))
 
   private def resolvePlanAction(state: ResolveState, action: Action): Either[DotbotError, ResolveState] =
     actionStep(action) match
