@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.2.3
+
+### Fixed
+
+- Failed backups stop link replacement before the original destination can be removed. Existing
+  backups are never overwritten, and source identity/containment checks prevent destructive
+  replacement of the source or its parent directory.
+- Directory creation preserves the process umask when no mode is configured. Explicit modes
+  remain supported; values outside `0000`–`0777` are rejected.
+- Dry-run uses the same replacement eligibility checks as apply, including regular files with
+  `relink: true` and `force: false`.
+- Validation rejects malformed defaults, unknown defaults sections, and invalid glob patterns.
+  Apply reports malformed globs as typed errors instead of exposing a stack trace.
+- Invalid paths, non-directory bases, shell start failures, and link-condition timeouts produce
+  normal error results. Shell resources are closed on failure.
+- Human-readable logs and plans escape terminal control characters and embedded newlines.
+  JSON output preserves the original values.
+
+### Performance
+
+- Glob exclusions filter a single traversal instead of repeating filesystem walks. A local
+  Java 21 benchmark with 5,000 files and ten exclusions improved by about 26%.
+- Suppressed log messages are evaluated lazily, plan rendering uses fewer temporary collections,
+  and the narrower JSON dependency reduces the JVM assembly size by about 3.9%.
+
+### Internal
+
+- Sources now live in separate `core`, `infra`, and `app` module roots. Extracted destination
+  preparation, defaults decoding, CLI state, and a configuration-loading port clarify ownership.
+- Both compilers target Java 21, and compiler warnings fail local and CI builds.
+- Added regression coverage, reproducible benchmarks, and packaged smoke checks for the JVM
+  assembly and both Linux native architectures. The test suite contains 279 tests.
+- Added architecture review and security-boundary documentation. Existing golden fixtures
+  remain unchanged.
+
 ## 0.2.2
 
 No user-visible changes. Same commands, same output, same exit codes -- this release is entirely
