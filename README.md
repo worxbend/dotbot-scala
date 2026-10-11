@@ -129,6 +129,12 @@ Paths may contain `~` and environment variables (`$NAME` or `${NAME}`). A variab
 
 File modes are octal, whether quoted or not: `mode: 0755` and `mode: "0755"` mean the same thing. A decimal value such as `mode: 493` is rejected.
 
+Without a `create` mode, new directories retain the process umask. An explicit entry or defaults mode sets the final permissions on the new directory. Supported modes are `0000` through `0777`; special permission bits are rejected by validation.
+
+With `backup: true`, a failed backup stops that link entry before removal or replacement. An existing backup is never overwritten. Backup names contain timestamps to the second; a collision is reported as an error. `relink: true` replaces symlinks; replacing a real file or directory requires `force: true`. Dry-run applies the same eligibility checks.
+
+`validate` checks the complete `defaults` block, including unknown sections, option shapes, and unused defaults. It also checks glob syntax. Apply retains permissive option decoding for compatibility; use validation before applying a changed configuration.
+
 Informational output goes to stdout; warnings and errors go to stderr. This is what makes `dotbot plan --output json > plan.json` safe to redirect.
 
 Supported file extensions:
@@ -270,9 +276,13 @@ The codebase follows a ports-and-adapters shape:
 - `infra` contains config parsing, filesystem, shell, and logging adapters.
 - `app` contains CLI composition, command orchestration, and output rendering.
 
+These are physical Mill module roots: `core/src`, `infra/src`, and `app/src`. Integration and contract tests remain under `app/test/src` and run through `./mill app.test`.
+
 Config is treated as a small program. Validation and planning interpret typed directives without applying effects; apply mode interprets the same directives through filesystem and shell ports.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the decision log and remaining design notes.
+
+See [the codebase review](docs/REVIEW.md) for the implemented fixes, design tradeoffs, and measured performance. [Security assumptions](docs/SECURITY.md) explain the trust boundary around filesystem changes and shell commands.
 
 ## Release
 

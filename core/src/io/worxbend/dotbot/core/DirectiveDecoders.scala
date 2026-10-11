@@ -7,7 +7,7 @@ object DirectiveDecoders:
         _           <- validateDefaults(Directive.Create, defaults, mode)
         defaultMode <- decodeFileMode(
                          defaults.section(Directive.Create).get("mode"),
-                         FileMode.rwxAll,
+                         None,
                          "default create mode must be an octal string or number",
                          mode,
                        )
@@ -79,7 +79,7 @@ object DirectiveDecoders:
 
   private def decodeCreateArray(
       paths: Vector[ConfigValue],
-      defaultMode: FileMode,
+      defaultMode: Option[FileMode],
       mode: DecodeMode,
   ): Either[DotbotError, CreateSpec] =
     if mode.strict && paths.exists(_.asString.isEmpty) then ConfigDecoder.fail("create directive item must be a string")
@@ -95,7 +95,7 @@ object DirectiveDecoders:
 
   private def decodeCreateMap(
       fields: ConfigFields,
-      defaultMode: FileMode,
+      defaultMode: Option[FileMode],
       mode: DecodeMode,
   ): Either[DotbotError, CreateSpec] =
     for
@@ -209,13 +209,24 @@ object DirectiveDecoders:
                      case Left(linkType) if mode.strict =>
                        ConfigDecoder.fail(s"link type is not recognized: ${linkType.render}")
                      case Left(linkType)                => Right(LinkEntry.InvalidLinkType(linkType))
-                     case Right(options)                => Right(LinkEntry.Link(linkName, entryTarget, options))
+                     case Right(options)                => decodedLink(linkName, entryTarget, options, mode)
                    ): Either[DotbotError, LinkEntry]
         yield entry
       case None            =>
         if mode.strict && target != ConfigValue.NullValue && target.asString.isEmpty then
           ConfigDecoder.fail(s"link target for $linkName must be a string or map")
-        else Right(LinkEntry.Link(linkName, defaultTarget(linkName, target), defaultOptions))
+        else decodedLink(linkName, defaultTarget(linkName, target), defaultOptions, mode)
+
+  private def decodedLink(
+      name: String,
+      target: String,
+      options: LinkOptions,
+      mode: DecodeMode,
+  ): Either[DotbotError, LinkEntry] =
+    val checked =
+      if mode.strict && options.glob then EitherUtil.traverse(target +: options.exclude)(Glob.validate).map(_ => ())
+      else Right(())
+    checked.map(_ => LinkEntry.Link(name, target, options))
 
   private def defaultTarget(linkName: String, target: ConfigValue): String =
     target match
@@ -226,12 +237,19 @@ object DirectiveDecoders:
 
   private def decodeFileMode(
       value: Option[ConfigValue],
-      fallback: FileMode,
+      fallback: Option[FileMode],
       message: String,
       mode: DecodeMode,
-  ): Either[DotbotError, FileMode] =
-    if mode.strict then FileMode.decodeConfig(value, fallback, message)
-    else Right(FileMode.fromConfig(value, fallback))
+  ): Either[DotbotError, Option[FileMode]] =
+    value match
+      case None      => Right(fallback)
+      case Some(raw) =>
+        val parsed = raw match
+          case ConfigValue.StringValue(item) => FileMode.fromOctal(item)
+          case ConfigValue.NumberValue(item) => FileMode.fromNumber(item)
+          case _                             => None
+        if mode.strict then parsed.map(Some(_)).toRight(DotbotError.Decode(message))
+        else Right(parsed.orElse(fallback))
 
   private def decodeShellItems(
       items: Vector[ConfigValue],

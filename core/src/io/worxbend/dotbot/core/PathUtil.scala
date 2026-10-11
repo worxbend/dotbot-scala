@@ -1,5 +1,6 @@
 package io.worxbend.dotbot.core
 
+import java.nio.file.InvalidPathException
 import java.nio.file.Paths
 import scala.util.matching.Regex
 
@@ -10,6 +11,10 @@ import scala.util.matching.Regex
  * [[PathResolver]] instead, so that this object stays trivially testable.
  */
 object PathUtil:
+  def checked[A](value: => A): Either[DotbotError, A] =
+    try Right(value)
+    catch case error: InvalidPathException => Left(DotbotError.InvalidPath(error.getInput, error.getReason))
+
   def clean(path: String): String =
     Paths.get(path).normalize().toString
 
@@ -30,16 +35,14 @@ object PathUtil:
    * True when `path` is `directory` itself or lives somewhere beneath it.
    *
    * Both sides are normalized first, so `..` segments are resolved before the comparison rather
-   * than being taken at face value: `/base/../other` is not inside `/base`. The trailing slash in
-   * the prefix test is what keeps `/basement` from counting as being inside `/base`.
+   * than being taken at face value: `/base/../other` is not inside `/base`. Comparing path
+   * components keeps `/basement` outside `/base` and handles filesystem roots correctly.
    *
    * This is the rule that decides whether `clean` deletes a broken symlink, so the sibling-prefix
    * and escaping-`..` cases are the ones worth being sure about.
    */
   def contains(directory: String, path: String): Boolean =
-    val dir    = clean(directory)
-    val target = clean(path)
-    target == dir || target.startsWith(dir + "/")
+    Paths.get(path).normalize().startsWith(Paths.get(directory).normalize())
 
   /**
    * Resolve a symlink's stored target against the directory the link itself lives in.

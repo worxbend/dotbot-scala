@@ -1,0 +1,120 @@
+{
+  "baseline_revision": "b96d07e",
+  "method": "Fresh JVM per sample; one warm-up per scenario; five measured iterations; warm filesystem cache; sequential runs without concurrent builds.",
+  "before": {
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43",
+    "runtime": "openjdk version \"21.0.8\" 2025-07-15 LTS",
+    "artifact_bytes": 15911606,
+    "iterations": 5,
+    "results": {
+      "version": {
+        "median_ms": 182.56,
+        "samples_ms": [
+          182.56,
+          184.96,
+          179.74,
+          182.52,
+          183.53
+        ]
+      },
+      "help": {
+        "median_ms": 200.84,
+        "samples_ms": [
+          200.84,
+          203.95,
+          199.96,
+          198.49,
+          206.3
+        ]
+      },
+      "plan_json_1000": {
+        "median_ms": 305.62,
+        "samples_ms": [
+          302.43,
+          299.44,
+          309.8,
+          307.36,
+          305.62
+        ]
+      },
+      "validate_10000": {
+        "median_ms": 306.01,
+        "samples_ms": [
+          304.44,
+          306.01,
+          305.04,
+          311.77,
+          309.65
+        ]
+      },
+      "glob_dry_run_5000_excludes_10": {
+        "median_ms": 638.77,
+        "samples_ms": [
+          592.03,
+          625.64,
+          638.77,
+          643.62,
+          639.2
+        ]
+      }
+    }
+  },
+  "after": {
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43",
+    "runtime": "openjdk version \"21.0.8\" 2025-07-15 LTS",
+    "artifact_bytes": 15291421,
+    "iterations": 5,
+    "results": {
+      "version": {
+        "median_ms": 181.34,
+        "samples_ms": [
+          185.39,
+          180.56,
+          181.36,
+          179.47,
+          181.34
+        ]
+      },
+      "help": {
+        "median_ms": 202.21,
+        "samples_ms": [
+          198.62,
+          202.21,
+          201.54,
+          205.4,
+          202.27
+        ]
+      },
+      "plan_json_1000": {
+        "median_ms": 307.77,
+        "samples_ms": [
+          299.42,
+          307.47,
+          307.77,
+          309.88,
+          321.6
+        ]
+      },
+      "validate_10000": {
+        "median_ms": 306.47,
+        "samples_ms": [
+          306.68,
+          306.12,
+          306.47,
+          304.87,
+          314.29
+        ]
+      },
+      "glob_dry_run_5000_excludes_10": {
+        "median_ms": 471.26,
+        "samples_ms": [
+          471.26,
+          472.85,
+          479.76,
+          468.66,
+          469.44
+        ]
+      }
+    }
+  }
+}

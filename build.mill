@@ -11,7 +11,7 @@ object Versions:
   val scala = "3.8.4"
   val dotbotScala = "0.2.2"
   val osLib = "0.11.8"
-  val upickle = "4.4.3"
+  val ujson = "4.4.3"
   val fansi = "0.5.1"
   val ox = "1.0.5"
   val picocli = "4.7.7"
@@ -23,18 +23,11 @@ object Versions:
   val munitScalacheck = "1.1.0"
 
 trait DotbotScalaModule extends ScalaModule with ScalafmtModule:
-  protected def workspaceRoot: os.Path =
-    sys.env.get("PWD").map(os.Path(_)).getOrElse(os.Path(sys.props("user.dir")))
-
-  protected def packageSource(name: String): os.Path =
-    workspaceRoot / "app" / "src" / "io" / "worxbend" / "dotbot" / name
-
-  protected def packageRootSource(fileName: String): os.Path =
-    workspaceRoot / "app" / "src" / "io" / "worxbend" / "dotbot" / fileName
-
   def scalaVersion = Versions.scala
 
   def scalacOptions = Seq(
+    "-release:21",
+    "-Werror",
     "-deprecation",
     "-feature",
     "-unchecked",
@@ -43,26 +36,14 @@ trait DotbotScalaModule extends ScalaModule with ScalafmtModule:
     "-Wvalue-discard",
     "-Wnonunit-statement",
     "-source:future",
-  ) ++ ciScalacOptions
-
-  private def ciScalacOptions: Seq[String] =
-    if sys.env.get("CI").contains("true") then Seq("-Werror")
-    else Seq.empty
+  )
 
   def javacOptions = Seq("--release", "21")
 
-object core extends DotbotScalaModule with ScalafixModule:
-  override def sources = Task.Sources(packageSource("core"))
+object core extends DotbotScalaModule with ScalafixModule
 
 object infra extends DotbotScalaModule:
   override def moduleDeps = Seq(core)
-
-  override def sources = Task.Sources(
-    packageSource("config"),
-    packageSource("fs"),
-    packageSource("logging"),
-    packageSource("shell"),
-  )
 
   def mvnDeps = Seq(
     mvn"com.lihaoyi::os-lib:${Versions.osLib}",
@@ -76,12 +57,6 @@ object infra extends DotbotScalaModule:
 
 object app extends DotbotScalaModule:
   override def moduleDeps = Seq(core, infra)
-
-  override def sources = Task.Sources(
-    packageRootSource("Main.scala"),
-    packageSource("app"),
-    packageSource("cli"),
-  )
 
   def mainClass = Some("io.worxbend.dotbot.Main")
 
@@ -104,12 +79,12 @@ object app extends DotbotScalaModule:
     PathRef(Task.dest)
 
   def mvnDeps = Seq(
-    mvn"com.lihaoyi::upickle:${Versions.upickle}",
+    mvn"com.lihaoyi::ujson:${Versions.ujson}",
     mvn"info.picocli:picocli:${Versions.picocli}",
   )
 
   def writeAssembly(dest: String = "dist/dotbot-scala.jar") = Task.Command:
-    val out = os.Path(dest, workspaceRoot)
+    val out = os.Path(dest, moduleDir / os.up)
     os.makeDir.all(out / os.up)
     os.copy.over(assembly().path, out, createFolders = true)
     println(out)

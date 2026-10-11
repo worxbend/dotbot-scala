@@ -26,7 +26,7 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
   protected override def someFailedMessage: String =
     "Some paths were not successfully set up"
 
-  private def createPath(ctx: RuntimeContext, path: String, mode: FileMode): Outcome =
+  private def createPath(ctx: RuntimeContext, path: String, mode: Option[FileMode]): Outcome =
     val absolute = ctx.paths.absFrom(ctx.baseDirectory, path)
     if ctx.fs.exists(absolute) then
       ctx.log.info(s"Path exists $absolute")
@@ -38,6 +38,9 @@ final class CreateHandler extends BatchedDirectiveHandler[CreateSpec, CreateEntr
       ctx.log.action(s"Creating path $absolute")
       if ctx.withFilesystem(ctx.fs.mkdirAll(absolute), _ => s"Failed to create path $absolute").isEmpty then
         Outcome.Failed
-      else if ctx.withFilesystem(ctx.fs.chmod(absolute, mode), _ => s"Failed to set mode for path $absolute").isEmpty
-      then Outcome.Failed
-      else Outcome.Ok
+      else
+        mode.fold(Outcome.Ok) { explicit =>
+          if ctx.withFilesystem(ctx.fs.chmod(absolute, explicit), _ => s"Failed to set mode for path $absolute").isEmpty
+          then Outcome.Failed
+          else Outcome.Ok
+        }

@@ -1,7 +1,9 @@
 package io.worxbend.dotbot.core
 
 import java.nio.file.FileSystems
+import java.nio.file.PathMatcher
 import java.nio.file.Paths
+import java.util.regex.PatternSyntaxException
 
 /**
  * Expansion of the glob patterns a `link` entry may use as its source.
@@ -19,9 +21,19 @@ object Glob:
 
   def createGlobResults(fs: Filesystem, pattern: String, exclude: Vector[String]): Either[DotbotError, Vector[String]] =
     for
+      excluded <- EitherUtil.traverse(exclude)(item => compile(item).map(item -> _))
       included <- glob(fs, pattern)
-      excluded <- EitherUtil.traverse(exclude)(glob(fs, _)).map(_.flatten.toSet)
-    yield included.filterNot(excluded.contains).sorted
+    yield included.filterNot { path =>
+      excluded.exists { case (item, matcher) =>
+        matcher.matches(Paths.get(path)) && (!item.contains("**") || includeDoubleStarMatch(fs, item, path))
+      }
+    }.sorted
+
+  def validate(pattern: String): Either[DotbotError, Unit] = compile(pattern).map(_ => ())
+
+  private def compile(pattern: String): Either[DotbotError, PathMatcher] =
+    try Right(FileSystems.getDefault.getPathMatcher(s"glob:$pattern"))
+    catch case error: PatternSyntaxException => Left(DotbotError.InvalidGlob(pattern, error.getDescription))
 
   def glob(fs: Filesystem, pattern: String): Either[DotbotError, Vector[String]] =
     if pattern.contains("**") then doubleStarGlob(fs, pattern)
@@ -64,11 +76,10 @@ object Glob:
       maxDepth: Int,
       includePath: String => Boolean,
   ): Either[DotbotError, Vector[String]] =
-    val matcher = FileSystems.getDefault.getPathMatcher(s"glob:$pattern")
-    fs.walk(root, maxDepth)
-      .map(_.filter(path => matcher.matches(Paths.get(path))).filter(includePath))
-      .left
-      .map(error => DotbotError.Message(error.message))
+    for
+      matcher <- compile(pattern)
+      paths   <- fs.walk(root, maxDepth).left.map(error => DotbotError.Message(error.message))
+    yield paths.filter(path => matcher.matches(Paths.get(path)) && includePath(path))
 
   /** Characterized by GlobSuite: double-star patterns exclude directories unless the pattern ends with "/". */
   private def includeDoubleStarMatch(fs: Filesystem, pattern: String, path: String): Boolean =

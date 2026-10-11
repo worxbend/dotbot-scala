@@ -1,17 +1,58 @@
 # Architecture
 
-`dotbot-scala` is being moved toward a small ports-and-adapters architecture while preserving CLI behavior byte-for-byte through golden tests.
+`dotbot-scala` uses a small ports-and-adapters architecture. Domain types and policies stay independent of parser, filesystem, terminal, and CLI libraries. Golden tests preserve normal CLI behavior; safety changes have explicit regression coverage.
 
 ## Current Shape
 
 - `io.worxbend.dotbot.core` owns the domain model (`ConfigValue`, `Action`, `Task`), directive enums, typed directive specs, planning output, execution outcome, and directive handlers.
-- `io.worxbend.dotbot.config` owns file reading and parsing. It parses YAML with `virtuslab/scala-yaml`, HOCON/JSON with Lightbend Config through PureConfig, and TOML with `tomlj`.
+- `io.worxbend.dotbot.config` owns file reading and parsing. It parses YAML with `virtuslab/scala-yaml`, HOCON with Lightbend Config, JSON with an ordered jsoniter codec, and TOML with `tomlj`.
 - `io.worxbend.dotbot.fs`, `shell`, and `logging` provide injected runtime ports and adapters.
 - `io.worxbend.dotbot.core.Environment` abstracts the ambient process environment, so path
   expansion and terminal detection are functions of injected values rather than of global state.
 - `io.worxbend.dotbot.app` wires dependencies, selects the app command, and renders plan output; `cli` maps picocli parse results to immutable app options.
 
-The Mill build now enforces staged `core`, `infra`, and `app` modules. Source files still live under the existing package tree, but each module has an explicit source-root slice so parser and adapter code depends on `core`, not the other way around.
+Mill enforces three modules with matching physical source roots: `core/src`, `infra/src`, and `app/src`. Package names remain stable. Sources use Mill's default module layout instead of environment-derived absolute paths. `core` has no third-party dependencies; `infra` depends on `core`; `app` depends on both. Tests remain in `app/test/src` so `./mill app.test` checks the complete boundary.
+
+```mermaid
+flowchart LR
+  CLI[CLI and AppCommand] --> Interpreter[Core interpreter]
+  Parsers[ConfigReader and parsers] --> AST[Ordered ConfigValue and typed specs]
+  AST --> Interpreter
+  Interpreter --> Handlers[Directive handlers]
+  Handlers --> Ports[Filesystem, ShellRunner, Log, Clock]
+  Adapters[Infrastructure adapters] -. implement .-> Ports
+  Wiring[Application wiring] --> CLI
+  Wiring --> Adapters
+```
+
+## Responsibility and pattern choices
+
+- `DirectiveHandler` is a strategy selected by the registry. `BatchedDirectiveHandler` supplies the small shared execution template. New directives do not require inheritance across infrastructure layers.
+- `ConfigDecoder[A]` is the typed decoding boundary. `DirectiveDefaults.decode` validates a whole defaults block before unknown names or invalid shapes could be discarded. Apply's compatibility conversion remains explicit.
+- `LinkHandler` resolves sources, evaluates conditions, expands globs, and creates links. Its `LinkDestination` collaborator owns destination preparation: source protection, parent creation, backup, and removal. Preparation returns a named result and stops at the first failure.
+- `ConfigLoader`, `Filesystem`, `ShellRunner`, and `Log` are ports. Adapters implement the ports; application wiring supplies them. The application no longer requires a concrete `ConfigReader` in its dependency contract.
+- `CliState` is immutable. A builder, local to each Picocli invocation, collects mutations. It needs no atomic synchronization. Option declarations remain in `Cli.scala`.
+- `AppCommand` selects apply, validation, or output behavior. `PlanOutput` renders data without executing it. Terminal escaping is an infrastructure concern and does not alter JSON values.
+
+Use composition where a policy varies. Keep simple transformations as functions. Additional factories, effect frameworks, service locators, or inheritance trees would add no concrete capability to this CLI.
+
+## Execution and safety contracts
+
+The configuration is an ordered program. Defaults and later actions are deliberately sequential; running directives concurrently could change their meaning. `Outcome` accumulates independent failures. It must never be used to continue a sequence of dependent destructive operations after a prerequisite fails.
+
+Directory modes distinguish omission (`None`, preserve umask) from an explicit mode. Backup moves refuse replacement. Failed backups or destination inspections prevent deletion. Source identity and canonical containment checks prevent backing up the source itself or deleting its containing directory. Force replacement is still an explicitly destructive operation, and the whole run is not transactional.
+
+Malformed globs and invalid paths become typed errors. Shell start failures are distinct from a command's exit status; a timed-out link condition fails instead of silently skipping the link. The shell adapter scopes streams and process cleanup with `try/finally` around its Ox supervision.
+
+`plan` is a validated summary of configuration intent. It does not evaluate conditions, simulate prior filesystem changes, or enumerate every glob match. `--dry-run` inspects the current filesystem and predicts actions without mutations or shell execution. It cannot promise that an actual run against changed filesystem state will succeed.
+
+## Performance and build contracts
+
+Ordinary globs limit traversal depth. Exclusions are compiled once and matched against included candidates, avoiding one filesystem walk per exclusion. Results remain sorted. Quiet logging does not evaluate suppressed messages, including large glob debug descriptions.
+
+The application depends on `ujson`, the API it uses, rather than the broader upickle serialization bundle. Both Scala and Java target Java 21; warnings are errors in local and CI builds. Formatting checks, lint, tests, and packaged smoke checks are separate commands. Build and dependency versions remain pinned to the existing versions.
+
+See [the review](docs/REVIEW.md) for measurements and [security assumptions](docs/SECURITY.md) for filesystem concurrency and trusted-shell limits.
 
 ## Interpretation Model
 
@@ -55,9 +96,9 @@ This keeps observable behavior stable while allowing fast unit tests against fak
 - DC-7: Independent `Either` traversals use `EitherUtil.traverse`; the remaining interpreter fold carries defaults state.
 - DC-8: Logger label padding is locked by tests as output contract.
 - BT-1/BT-5: Golden tests, fake-backed handler tests, and property tests now form separate test tiers.
-- BT-2: Strict scalac warnings are enabled, with `-Werror` under `CI=true`.
+- BT-2: Strict scalac warnings and `-Werror` apply in local and CI builds; Scala and Java target release 21.
 - BT-3: Scalafix is wired for `core.fix --check` with `OrganizeImports` and core-only `DisableSyntax` rules for `var`, `return`, and `null`.
-- BT-4: The Mill module graph is split into staged `core`, `infra`, and `app` modules; `core` has no Maven dependencies, and a later physical source-directory move can be mechanical.
+- BT-4: The Mill module graph and physical directories are split into `core`, `infra`, and `app`; `core` has no Maven dependencies.
 - BT-6: `munit-scalacheck` covers selected path, glob, and permission invariants.
 - DI-1: Ambient process state is reached through an `Environment` port. `Environment.System` is the
   only code that touches `sys.env` or `sys.props`, and it is supplied at the composition root. This

@@ -6,6 +6,15 @@ import io.worxbend.dotbot.core.ShellOptions
 import java.time.Duration
 
 class ShellCommandSuite extends munit.FunSuite:
+  test("a nonexistent working directory returns a start failure") {
+    val root = os.temp.dir(prefix = "dotbot-shell-failure-")
+    try
+      val result = OsShellRunner.run("true", ShellOptions(cwd = (root / "absent").toString))
+      assert(result.isInstanceOf[ShellExit.FailedToStart])
+      assert(!result.successful)
+    finally os.remove.all(root)
+  }
+
   test("commands run through a POSIX shell, not the user's login shell") {
     // Taking the interpreter from $SHELL made a config's behavior depend on who ran it: under
     // fish or tcsh the POSIX syntax that config authors write is a syntax error.

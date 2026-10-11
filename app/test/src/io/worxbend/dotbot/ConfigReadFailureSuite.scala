@@ -9,6 +9,11 @@ import io.worxbend.dotbot.testkit.TestEnvironment
  * thing a user hits when something is wrong.
  */
 class ConfigReadFailureSuite extends munit.FunSuite:
+  test("an invalid config path is returned as a read failure") {
+    val result = ConfigReader().read(Vector("bad\u0000path.yaml"))
+    assert(result.left.exists(_.isInstanceOf[DotbotError.ConfigReadFailed]))
+  }
+
   test("a missing config file is reported with the path as the user wrote it") {
     val result = ConfigReader().read(Vector("/definitely/absent/install.conf.yaml"))
 

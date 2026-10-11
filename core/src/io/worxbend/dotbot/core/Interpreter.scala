@@ -37,7 +37,7 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
 
   private enum ActionStep:
     case Skip(directive: Directive)
-    case UpdateDefaults(defaults: DirectiveDefaults)
+    case UpdateDefaults(data: ConfigValue)
     case MissingHandler(directive: Directive)
     case Handle(handler: DirectiveHandler)
 
@@ -57,7 +57,7 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
         ctx.log.info(s"Skipping action ${directive.label}")
         state
       case ActionStep.UpdateDefaults(updated)   =>
-        state.copy(defaults = updated)
+        state.copy(defaults = DirectiveDefaults.from(updated))
       case ActionStep.MissingHandler(directive) =>
         ctx.log.error(s"Action ${directive.label} not handled")
         if ctx.options.exitOnFailure then break(Right(Outcome.Failed): Either[DotbotError, Outcome])
@@ -75,7 +75,9 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       ctx.log.action(s"Skipping dry-run-unaware handler ${handler.getClass.getSimpleName}")
       state
     else
-      val executed = resolveAction(handler, action.data, state.defaults, DecodeMode.Execute).map(_.execute(ctx))
+      val executed = PathUtil.checked {
+        resolveAction(handler, action.data, state.defaults, DecodeMode.Execute).map(_.execute(ctx))
+      }.flatten
       executed match
         case Left(error) if ctx.options.exitOnFailure =>
           break(Left(DotbotError.Execution(directive, error)): Either[DotbotError, Outcome])
@@ -94,7 +96,11 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       case ActionStep.Skip(_)                   =>
         Right(state)
       case ActionStep.UpdateDefaults(defaults)  =>
-        Right(state.copy(defaults = defaults))
+        DirectiveDefaults
+          .decode(defaults)
+          .left
+          .map(error => DotbotError.Validation(Directive.Defaults, error))
+          .map(decoded => state.copy(defaults = decoded))
       case ActionStep.MissingHandler(directive) =>
         Left(DotbotError.ActionNotHandled(directive))
       case ActionStep.Handle(handler)           =>
@@ -107,7 +113,7 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
     if shouldSkip(directive) && directive != Directive.Defaults then ActionStep.Skip(directive)
     else
       directive match
-        case Directive.Defaults => ActionStep.UpdateDefaults(DirectiveDefaults.from(action.data))
+        case Directive.Defaults => ActionStep.UpdateDefaults(action.data)
         case _                  =>
           handlerFor(directive) match
             case None          => ActionStep.MissingHandler(directive)
@@ -119,7 +125,7 @@ final class Interpreter(ctx: RuntimeContext, handlers: Map[Directive, DirectiveH
       defaults: DirectiveDefaults,
       mode: DecodeMode,
   ): Either[DotbotError, ResolvedAction] =
-    handler.decode(data, defaults, mode).map(spec => ResolvedAction(handler)(spec))
+    PathUtil.checked(handler.decode(data, defaults, mode).map(spec => ResolvedAction(handler)(spec))).flatten
 
   private def actions(tasks: Vector[Task]): Iterator[Action] =
     tasks.iterator.flatMap(_.actions.iterator)

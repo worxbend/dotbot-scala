@@ -15,6 +15,7 @@ import io.worxbend.dotbot.logging.TerminalCapabilities
 import io.worxbend.dotbot.shell.OsShellRunner
 
 import io.worxbend.dotbot.core.CoreOptions
+import io.worxbend.dotbot.core.ConfigLoader
 
 import java.io.PrintStream
 import java.time.Clock
@@ -59,7 +60,7 @@ final case class AppOptions(
  * Overridable runtime dependencies for composition/testing.
  */
 final case class AppDependencies(
-    reader: ConfigReader = ConfigReader(),
+    reader: ConfigLoader = ConfigReader(),
     fs: Filesystem = OsFilesystem,
     shell: ShellRunner = OsShellRunner,
     clock: Clock = Clock.systemDefaultZone(),
@@ -115,6 +116,8 @@ object DotbotApp:
     else if options.forceEmoji && options.noEmoji then
       Left(DotbotError.Message("`--emoji` and `--no-emoji` cannot both be provided"))
     else if options.configFiles.isEmpty then Left(DotbotError.Message("No configuration file specified"))
+    else if options.shellTimeout.isNegative || options.shellTimeout.isZero then
+      Left(DotbotError.Message("Shell timeout must be positive"))
     else Right(())
 
   private def warnIfNoTasks(options: AppOptions, tasks: Vector[Task], logger: Logger): Unit =
@@ -122,15 +125,20 @@ object DotbotApp:
       logger.warning("No tasks given in configuration, no work to do")
 
   private def resolveBaseDirectory(options: AppOptions, deps: AppDependencies): Either[DotbotError, String] =
-    val base =
+    val resolved = PathUtil.checked {
       if options.baseDirectory.isBlank then PathUtil.dirname(deps.paths.abs(options.configFiles.head))
       else deps.paths.abs(options.baseDirectory)
-
-    deps.fs
-      .stat(base)
-      .left
-      .map(error => DotbotError.Message(s"nonexistent base directory: ${error.message}"))
-      .map(_ => base)
+    }
+    resolved.flatMap { base =>
+      deps.fs
+        .stat(base)
+        .left
+        .map(error => DotbotError.Message(s"nonexistent base directory: ${error.message}"))
+        .flatMap { _ =>
+          if deps.fs.isDir(base) then Right(base)
+          else Left(DotbotError.Message(s"base directory is not a directory: $base"))
+        }
+    }
 
   private def execute(
       options: AppOptions,

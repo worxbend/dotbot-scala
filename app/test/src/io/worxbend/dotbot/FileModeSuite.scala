@@ -5,6 +5,11 @@ import io.worxbend.dotbot.core.DotbotError
 import io.worxbend.dotbot.core.FileMode
 
 class FileModeSuite extends munit.FunSuite:
+  test("rejects negative and unsupported special permission bits") {
+    for mode <- Vector("-1", "+700", "1700", "4755", "7777") do
+      assertEquals(FileMode.fromOctal(mode), None, clue = mode)
+  }
+
   private def octal(value: String): Int =
     Integer.parseInt(value, 8)
 

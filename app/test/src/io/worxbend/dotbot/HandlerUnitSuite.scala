@@ -33,12 +33,19 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 class HandlerUnitSuite extends munit.FunSuite:
+  for exit <- Vector(ShellExit.TimedOut, ShellExit.FailedToStart("missing working directory")) do
+    test(s"link condition execution failure fails the directive: $exit") {
+      val runtime = TestRuntime(shell = ScriptedShellRunner.always(exit))
+      val spec    = LinkSpec(None, Vector(LinkEntry.Link("dest", "source", LinkOptions(ifCommand = "condition"))))
+      assertEquals(LinkHandler().execute(runtime.ctx, spec), Outcome.Failed)
+    }
+
   test("create handler creates and chmods missing paths through the filesystem port") {
     val base    = "/workspace"
     val fs      = FakeFilesystem(Map(base -> FakeEntry.Directory))
     val runtime = TestRuntime(baseDirectory = base, fs = fs)
     val path    = PathUtil.join(base, "generated")
-    val spec    = CreateSpec(Vector(CreateEntry.Path("generated", FileMode.rwxAll)))
+    val spec    = CreateSpec(Vector(CreateEntry.Path("generated", Some(FileMode.rwxAll))))
 
     assertEquals(CreateHandler().execute(runtime.ctx, spec), Outcome.Ok)
     assert(fs.hasDirectory(path))
@@ -568,7 +575,6 @@ class HandlerUnitSuite extends munit.FunSuite:
     assertEquals(
       runtime.output.toString,
       s"""warn  source.txt appears to be the same file as $target.
-         |warn  source.txt already exists but is a regular file or directory
          |error Some links were not successfully set up
          |""".stripMargin,
     )

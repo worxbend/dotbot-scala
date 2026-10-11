@@ -1,10 +1,6 @@
 package io.worxbend.dotbot.core
 
-import java.time.format.DateTimeFormatter
-
 final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
-
-  private val BackupTimestampFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
 
   def directive: Directive = Directive.Link
 
@@ -47,10 +43,14 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
   ): Outcome =
     val linkName   = ctx.paths.path(rawLinkName)
     val sourcePath = PathUtil.clean(ctx.paths.path(rawPath))
-    if !conditionAllowsLink(ctx, options) then
-      ctx.log.info(s"Skipping $linkName")
-      Outcome.Ok
-    else processLinkSource(ctx, sourcePath, linkName, options)
+    conditionAllowsLink(ctx, options) match
+      case Left(error)  =>
+        ctx.log.warning(error.render)
+        Outcome.Failed
+      case Right(false) =>
+        ctx.log.info(s"Skipping $linkName")
+        Outcome.Ok
+      case Right(true)  => processLinkSource(ctx, sourcePath, linkName, options)
 
   /**
    * Decide whether an entry's `if` condition permits the link.
@@ -61,15 +61,17 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
    * A dry run instead reports the command and assumes it would succeed, which makes the plan show
    * every link the config could create.
    */
-  private def conditionAllowsLink(ctx: RuntimeContext, options: LinkOptions): Boolean =
-    if options.ifCommand.isEmpty then true
+  private def conditionAllowsLink(ctx: RuntimeContext, options: LinkOptions): Either[DotbotError, Boolean] =
+    if options.ifCommand.isEmpty then Right(true)
     else if !ctx.performsSideEffects then
       ctx.log.action(s"Would check condition [${options.ifCommand}]")
-      true
+      Right(true)
     else
       ctx.shell
-        .run(options.ifCommand, ShellOptions(cwd = ctx.baseDirectory, timeout = ctx.options.shellTimeout))
-        .successful
+        .run(options.ifCommand, ShellOptions(cwd = ctx.baseDirectory, timeout = ctx.options.shellTimeout)) match
+        case ShellExit.Completed(code)       => Right(code == 0)
+        case ShellExit.TimedOut              => Left(DotbotError.Message(s"Link condition timed out [${options.ifCommand}]"))
+        case ShellExit.FailedToStart(detail) => Left(DotbotError.Message(s"Could not start link condition: $detail"))
 
   private def processLinkSource(
       ctx: RuntimeContext,
@@ -127,32 +129,9 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
       ctx.log.warning(s"Nonexistent target ${link.linkName} -> ${link.target}")
       Outcome.Failed
     else
-      val parentOutcome =
-        if options.create then createParent(ctx, link.linkPath)
-        else Outcome.Ok
-      val backupResult  =
-        if options.backup then backup(ctx, link)
-        else BackupResult.NotNeeded
-
-      val removeResult =
-        if (options.force || options.relink) && backupResult != BackupResult.BackedUp then
-          deleteLink(ctx, link, options)
-        else RemoveResult.Kept
-
-      val linkPathAvailable = backupResult.makesLinkPathAvailable || removeResult.makesLinkPathAvailable
-      createLink(ctx, link, options, linkPathAvailable)
-        .combine(parentOutcome)
-        .combine(backupResult.outcome)
-        .combine(removeResult.outcome)
-
-  final private case class LinkResolution(
-      target: String,
-      linkName: String,
-      linkPath: String,
-      absoluteTarget: String,
-      targetPath: String,
-  ):
-    def cleanLinkName: String = PathUtil.clean(linkName)
+      LinkDestination(ctx, link).prepare(options) match
+        case DestinationPreparation.Failed => Outcome.Failed
+        case prepared                      => createLink(ctx, link, options, prepared == DestinationPreparation.Available)
 
   private def resolveLink(ctx: RuntimeContext, target: String, linkName: String, options: LinkOptions): LinkResolution =
     val base           = baseDir(ctx, options.canonicalize)
@@ -172,117 +151,6 @@ final class LinkHandler extends BatchedDirectiveHandler[LinkSpec, LinkEntry]:
 
   private def formatStrings(values: Vector[String]): String =
     values.map(value => "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"").mkString("Vector(", ", ", ")")
-
-  private def createParent(ctx: RuntimeContext, linkPath: String): Outcome =
-    val parent = PathUtil.dirname(linkPath)
-    if ctx.fs.exists(parent) then Outcome.Ok
-    else if ctx.options.dryRun then
-      ctx.log.action(s"Would create directory $parent")
-      Outcome.Ok
-    else if ctx.withFilesystem(ctx.fs.mkdirAll(parent), _ => s"Failed to create directory $parent").isEmpty then
-      Outcome.Failed
-    else
-      ctx.log.action(s"Creating directory $parent")
-      Outcome.Ok
-
-  private enum BackupResult:
-    def outcome: Outcome =
-      this match
-        case Failed => Outcome.Failed
-        case _      => Outcome.Ok
-
-    def makesLinkPathAvailable: Boolean =
-      this == BackedUp
-
-    case NotNeeded, BackedUp, Failed
-
-  private enum RemoveResult:
-    def outcome: Outcome =
-      this match
-        case FailedBeforeRemove | FailedAfterRemoveAttempt => Outcome.Failed
-        case _                                             => Outcome.Ok
-
-    def makesLinkPathAvailable: Boolean =
-      this match
-        case Removed => true
-        case _       => false
-
-    case Kept, Removed, FailedBeforeRemove, FailedAfterRemoveAttempt
-
-  private enum RemoveDecision:
-    case Keep, Remove
-
-  private def backup(ctx: RuntimeContext, link: LinkResolution): BackupResult =
-    if ctx.fs.exists(link.linkPath) && !ctx.fs.isSymlink(link.linkPath) then
-      val timestamp  = BackupTimestampFormatter.format(ctx.clock.instant().atZone(ctx.clock.getZone))
-      val backupName = s"${link.linkName}.dotbot-backup.$timestamp"
-      val backupPath = ctx.paths.absFromExpanded(ctx.baseDirectory, backupName)
-      if ctx.options.dryRun then
-        ctx.log.action(s"Would backup ${link.linkName} to $backupName")
-        BackupResult.BackedUp
-      else if ctx
-          .withFilesystem(
-            ctx.fs.rename(link.linkPath, backupPath),
-            _ => s"Failed to backup file ${link.linkName} to $backupName",
-          )
-          .isEmpty
-      then BackupResult.Failed
-      else
-        ctx.log.action(s"Backed up file ${link.linkName} to $backupName")
-        BackupResult.BackedUp
-    else BackupResult.NotNeeded
-
-  private def deleteLink(ctx: RuntimeContext, link: LinkResolution, options: LinkOptions): RemoveResult =
-    sameFileConflict(ctx, link).getOrElse {
-      shouldRemoveLink(ctx, link) match
-        case Left(result)                                       => result
-        case Right(RemoveDecision.Keep)                         => RemoveResult.Kept
-        case Right(RemoveDecision.Remove) if ctx.options.dryRun =>
-          ctx.log.action(s"Would remove ${link.linkName}")
-          RemoveResult.Removed
-        case Right(RemoveDecision.Remove)                       => removeLink(ctx, link, options)
-    }
-
-  private def sameFileConflict(ctx: RuntimeContext, link: LinkResolution): Option[RemoveResult] =
-    if ctx.fs.exists(link.linkPath) && !ctx.fs.isSymlink(link.linkPath) then
-      ctx.withFilesystem(ctx.fs.sameFile(link.linkPath, link.absoluteTarget), _ => "Failed to compare file links") match
-        case Some(true)  =>
-          ctx.log.warning(s"${link.linkName} appears to be the same file as ${link.absoluteTarget}.")
-          Some(RemoveResult.FailedBeforeRemove)
-        case Some(false) => None
-        case None        => None
-    else None
-
-  private def shouldRemoveLink(ctx: RuntimeContext, link: LinkResolution): Either[RemoveResult, RemoveDecision] =
-    if ctx.fs.isSymlink(link.linkPath) then
-      ctx.withFilesystem(ctx.fs.readlink(link.linkPath), _ => s"Failed to inspect link ${link.linkName}") match
-        case None              => Left(RemoveResult.FailedBeforeRemove)
-        case Some(currentPath) => Right(removeWhen(currentPath != link.targetPath))
-    else Right(removeWhen(ctx.fs.lexists(link.linkPath)))
-
-  private def removeWhen(condition: Boolean): RemoveDecision =
-    if condition then RemoveDecision.Remove else RemoveDecision.Keep
-
-  /**
-   * Remove whatever currently occupies the link path, so that the link can be created.
-   *
-   * A plain file or directory is only removed under `force`. `relink` on its own is about
-   * replacing a symlink that points somewhere else, and must not delete real content.
-   */
-  private def removeLink(ctx: RuntimeContext, link: LinkResolution, options: LinkOptions): RemoveResult =
-    val wasSymlink = ctx.fs.isSymlink(link.linkPath)
-    if !wasSymlink && !options.force then RemoveResult.Kept
-    else
-      val failure = (_: FsFailure) => s"Failed to remove ${link.linkName}"
-      val removed =
-        if wasSymlink then ctx.withFilesystem(ctx.fs.remove(link.linkPath), failure)
-        else if ctx.fs.isDir(link.linkPath) then ctx.withFilesystem(ctx.fs.removeAll(link.linkPath), failure)
-        else ctx.withFilesystem(ctx.fs.remove(link.linkPath), failure)
-
-      if removed.isEmpty then RemoveResult.FailedAfterRemoveAttempt
-      else
-        ctx.log.action(s"Removing ${link.linkName}")
-        RemoveResult.Removed
 
   /**
    * Put the link in place, or explain why what is already there is in the way.

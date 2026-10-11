@@ -2,15 +2,19 @@ package io.worxbend.dotbot.core
 
 import java.time.Duration
 
+/** Loads the ordered configuration program without coupling the application to a parser implementation. */
+trait ConfigLoader:
+  def read(paths: Seq[String]): Either[DotbotError, Vector[Task]]
+
 /**
  * Logging abstraction used by core runtime components.
  */
 trait Log:
-  def debug(message: String): Unit
-  def info(message: String): Unit
-  def action(message: String): Unit
-  def warning(message: String): Unit
-  def error(message: String): Unit
+  def debug(message: => String): Unit
+  def info(message: => String): Unit
+  def action(message: => String): Unit
+  def warning(message: => String): Unit
+  def error(message: => String): Unit
 
 /**
  * Why a filesystem operation could not be carried out.
@@ -59,6 +63,8 @@ trait Filesystem:
   def realpath(path: String): FsResult[String]
   def remove(path: String): FsResult[Unit]
   def removeAll(path: String): FsResult[Unit]
+
+  /** Move without replacing an existing destination, including an existing backup. */
   def rename(from: String, to: String): FsResult[Unit]
   def sameFile(a: String, b: String): FsResult[Boolean]
   def stat(path: String): FsResult[Unit]
@@ -76,6 +82,7 @@ final case class ShellOptions(
 enum ShellExit:
   case Completed(exitCode: Int)
   case TimedOut
+  case FailedToStart(detail: String)
 
   def successful: Boolean =
     this match

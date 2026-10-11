@@ -65,24 +65,24 @@ final class Logger(
     private[logging] val stylishSymbols: Boolean = false,
 ) extends Log:
 
-  def debug(message: String): Unit = log(Level.Debug, message)
+  def debug(message: => String): Unit = log(Level.Debug, message)
 
-  def info(message: String): Unit = log(Level.Info, message)
+  def info(message: => String): Unit = log(Level.Info, message)
 
-  def action(message: String): Unit = log(Level.Action, message)
+  def action(message: => String): Unit = log(Level.Action, message)
 
-  def warning(message: String): Unit = log(Level.Warning, message)
+  def warning(message: => String): Unit = log(Level.Warning, message)
 
-  def error(message: String): Unit = log(Level.Error, message)
+  def error(message: => String): Unit = log(Level.Error, message)
 
-  private def log(level: Level, message: String): Unit =
+  private def log(level: Level, message: => String): Unit =
     if level.rank >= minimum.rank then
       val name    = label(level)
       // The badge is styled, but the padding that aligns messages into a column is not: keeping
       // spaces outside the ANSI reset makes the plain and colored forms line up identically.
       val badge   = s"${style(level)}${symbol(level)}$name${reset}"
       val padding = " " * (Logger.LabelWidth - name.length)
-      streamFor(level).println(s"$badge$padding${messageStyle(level)}$message$reset")
+      streamFor(level).println(s"$badge$padding${messageStyle(level)}${TerminalText.escape(message)}$reset")
 
   /**
    * Diagnostics go to the error stream so that they can be separated from real output.

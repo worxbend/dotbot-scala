@@ -65,8 +65,8 @@ class DirectiveDecoderSuite extends munit.FunSuite:
       Right(
         CreateSpec(
           Vector(
-            CreateEntry.Path("bin", mode("755")),
-            CreateEntry.Path("cache", mode("700")),
+            CreateEntry.Path("bin", Some(mode("755"))),
+            CreateEntry.Path("cache", Some(mode("700"))),
           ),
         ),
       ),

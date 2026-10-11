@@ -48,4 +48,7 @@ final case class RuntimeContext(
     if exit.successful then Outcome.Ok
     else
       log.warning(onFailure(exit))
+      exit match
+        case ShellExit.FailedToStart(detail) => log.warning(s"Could not start command: $detail")
+        case _                               => ()
       Outcome.Failed

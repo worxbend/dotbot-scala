@@ -7,6 +7,11 @@ import io.worxbend.dotbot.core.PathUtil
  * `PathResolver` and is covered by `PathResolverSuite`.
  */
 class PathUtilSuite extends munit.FunSuite:
+  test("filesystem root contains absolute descendants") {
+    assert(PathUtil.contains("/", "/tmp/source"))
+    assert(!PathUtil.contains("/", "relative/source"))
+  }
+
   test("normalizes traversal segments out of joined paths") {
     assertEquals(PathUtil.join("/tmp/dotbot", "a/../b"), "/tmp/dotbot/b")
     assertEquals(PathUtil.clean("/tmp/dotbot/../dotbot/file"), "/tmp/dotbot/file")

@@ -8,24 +8,9 @@ enum DecodeMode:
   def strict: Boolean =
     this == DecodeMode.Validate
 
-final case class DirectiveDefaults(values: Map[Directive, ConfigValue]):
-  def section(directive: Directive): Map[String, ConfigValue] =
-    values.get(directive).flatMap(_.asMap).getOrElse(Map.empty)
-
-object DirectiveDefaults:
-  val empty: DirectiveDefaults = DirectiveDefaults(Map.empty)
-
-  def from(value: ConfigValue): DirectiveDefaults =
-    DirectiveDefaults(
-      value.asMap
-        .getOrElse(Map.empty)
-        .flatMap { case (name, section) =>
-          Directive.fromString(name).map(_ -> section)
-        },
-    )
-
 enum CreateEntry:
-  case Path(path: String, mode: FileMode)
+  /** No explicit mode means the filesystem preserves the process umask. */
+  case Path(path: String, mode: Option[FileMode])
 
   /** An entry that could not be understood. `description` quotes what the user wrote. */
   case Invalid(description: String)

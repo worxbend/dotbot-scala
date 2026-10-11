@@ -3,6 +3,7 @@ package io.worxbend.dotbot.app
 import io.worxbend.dotbot.core.Directive
 import io.worxbend.dotbot.core.Plan
 import io.worxbend.dotbot.core.Operation
+import io.worxbend.dotbot.logging.TerminalText
 
 /**
  * The run-level numbers printed in a plan header.
@@ -23,10 +24,11 @@ object PlanOutput:
    * @param stylish when true, render emoji icons and a decorated header.
    */
   def text(plan: Plan, summary: PlanSummary, stylish: Boolean = false): String =
-    val lines      =
-      if stylish then stylishHeader(plan.operations.size, summary)
-      else plainHeader(plan.operations.size, summary)
-    val operations = plan.operations.map(operation => renderTextOperation(operation, stylish))
+    val safeSummary = summary.copy(base = TerminalText.escape(summary.base))
+    val lines       =
+      if stylish then stylishHeader(plan.operations.size, safeSummary)
+      else plainHeader(plan.operations.size, safeSummary)
+    val operations  = plan.operations.map(operation => renderTextOperation(operation, stylish))
     (lines ++ operations).mkString("", "\n", "\n")
 
   /**
@@ -79,7 +81,7 @@ object PlanOutput:
    * agree on emoji width — but it is the common case and far closer than counting code units.
    */
   private def displayWidth(text: String): Int =
-    text.codePoints().toArray.toVector.map(columnsFor).sum
+    text.codePoints().map(columnsFor).sum()
 
   private def columnsFor(codePoint: Int): Int =
     if codePoint == VariationSelector || codePoint == ZeroWidthJoiner then 0
@@ -93,12 +95,14 @@ object PlanOutput:
   private def renderTextOperation(operation: Operation, stylish: Boolean): String =
     val detail =
       if operation.detail.isEmpty then ""
-      else operation.detailStyle.suffix(operation.detail)
-    if stylish then s"${directiveIcon(operation.directive)} ${operation.directive.label}  ${operation.target}$detail"
+      else operation.detailStyle.suffix(TerminalText.escape(operation.detail))
+    val label  = TerminalText.escape(operation.directive.label)
+    val target = TerminalText.escape(operation.target)
+    if stylish then s"${directiveIcon(operation.directive)} $label  $target$detail"
     else
       // Pad the directive label into a fixed column so targets line up. This must not be an `s`
       // interpolator: `%-7s` is a printf directive and `s` would emit it as literal text.
-      s"${directiveColumn(operation.directive.label)}${operation.target}$detail"
+      s"${directiveColumn(label)}$target$detail"
 
   /**
    * Width of the directive column in plain text plan output, locked by `PlanOutputSuite`. An

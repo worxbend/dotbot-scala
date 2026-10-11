@@ -18,7 +18,8 @@ object FileMode:
   def apply(value: Int): FileMode = value
 
   def fromOctal(value: String): Option[FileMode] =
-    scala.util.Try(octalLiteral(value)).toOption
+    if value.isEmpty || !value.forall(ch => ch >= '0' && ch <= '7') then None
+    else scala.util.Try(octalLiteral(value)).toOption.filter(mode => mode.value <= rwxAll.value)
 
   /**
    * Read a mode written as a bare number, such as `mode: 0755`.

@@ -7,10 +7,15 @@ import ox.forkDiscard
 import ox.supervised
 
 import java.io.InputStream
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 object OsShellRunner extends ShellRunner:
   def run(command: String, options: ShellOptions): ShellExit =
+    try start(command, options)
+    catch case error: IOException => ShellExit.FailedToStart(String.valueOf(error.getMessage))
+
+  private def start(command: String, options: ShellOptions): ShellExit =
     val processBuilder = ProcessBuilder(shellCommand(command)*)
       .directory(java.io.File(options.cwd))
 
@@ -23,17 +28,22 @@ object OsShellRunner extends ShellRunner:
     if options.enableStdin then processBuilder.redirectInput(ProcessBuilder.Redirect.INHERIT): Unit
 
     val process = processBuilder.start()
-    if !options.enableStdin then process.getOutputStream.close()
+    try
+      if !options.enableStdin then process.getOutputStream.close()
+      supervised:
+        if options.enableStdout then forkDiscard(copy(process.getInputStream, System.out))
+        if options.enableStderr then forkDiscard(copy(process.getErrorStream, System.err))
 
-    supervised:
-      if options.enableStdout then forkDiscard(copy(process.getInputStream, System.out))
-      if options.enableStderr then forkDiscard(copy(process.getErrorStream, System.err))
-
-      val finished = process.waitFor(options.timeout.toMillis, TimeUnit.MILLISECONDS)
-      if !finished then
-        terminate(process)
-        ShellExit.TimedOut
-      else ShellExit.Completed(process.exitValue())
+        try
+          val finished = process.waitFor(options.timeout.toMillis, TimeUnit.MILLISECONDS)
+          if finished then ShellExit.Completed(process.exitValue())
+          else ShellExit.TimedOut
+        finally if process.isAlive then terminate(process)
+    finally
+      if process.isAlive then terminate(process)
+      process.getInputStream.close()
+      process.getErrorStream.close()
+      process.getOutputStream.close()
 
   /**
    * Kill a timed-out command and everything it started.
@@ -45,7 +55,9 @@ object OsShellRunner extends ShellRunner:
    * has actually stopped.
    */
   private def terminate(process: Process): Unit =
-    process.descendants().forEach(_.destroyForcibly(): Unit)
+    val descendants = process.descendants()
+    try descendants.forEach(_.destroyForcibly(): Unit)
+    finally descendants.close()
     process.destroyForcibly()
     process.waitFor(): Unit
 

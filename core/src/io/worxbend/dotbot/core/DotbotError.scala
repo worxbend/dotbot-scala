@@ -4,6 +4,12 @@ sealed trait DotbotError:
   def render: String
 
 object DotbotError:
+  final case class InvalidPath(path: String, detail: String) extends DotbotError:
+    def render: String = s"invalid path \"$path\": $detail"
+
+  final case class InvalidGlob(pattern: String, detail: String) extends DotbotError:
+    def render: String = s"invalid glob \"$pattern\": $detail"
+
   final case class Message(message: String) extends DotbotError:
     def render: String = message
 

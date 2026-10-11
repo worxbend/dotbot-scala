@@ -8,7 +8,6 @@ import io.worxbend.dotbot.core.FsResult
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.PosixFilePermission
 
 import scala.jdk.CollectionConverters.*
@@ -75,7 +74,7 @@ object OsFilesystem extends Filesystem:
 
   def rename(from: String, to: String): FsResult[Unit] =
     Try:
-      Files.move(Paths.get(from), Paths.get(to), StandardCopyOption.REPLACE_EXISTING)
+      Files.move(Paths.get(from), Paths.get(to))
       ()
     .toEither.left.map(asFailure)
 

@@ -33,10 +33,12 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
   private val mkdirCalls0  = ArrayBuffer.empty[String]
   private val chmodCalls0  = ArrayBuffer.empty[(String, FileMode)]
   private val removeCalls0 = ArrayBuffer.empty[String]
+  private val walkCalls0   = ArrayBuffer.empty[(String, Int)]
 
   def mkdirCalls: Vector[String]             = mkdirCalls0.toVector
   def chmodCalls: Vector[(String, FileMode)] = chmodCalls0.toVector
   def removeCalls: Vector[String]            = removeCalls0.toVector
+  def walkCalls: Vector[(String, Int)]       = walkCalls0.toVector
   def paths: Set[String]                     = entries.keySet.toSet
 
   def hasDirectory(path: String): Boolean =
@@ -77,6 +79,7 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
       )
 
   def walk(root: String, maxDepth: Int): FsResult[Vector[String]] =
+    walkCalls0 += (root -> maxDepth)
     val normalized = normalize(root)
     if !entries.contains(normalized) then Right(Vector.empty)
     else
@@ -130,12 +133,14 @@ final class FakeFilesystem(initial: Map[String, FakeEntry]) extends Filesystem:
   def rename(from: String, to: String): FsResult[Unit] =
     val normalizedFrom = normalize(from)
     val normalizedTo   = normalize(to)
-    entries.get(normalizedFrom) match
-      case Some(entry) =>
-        removeEntry(normalizedFrom)
-        entries.update(normalizedTo, entry)
-        Right(())
-      case None        => Left(FsFailure(normalizedFrom))
+    if entries.contains(normalizedTo) then Left(FsFailure(s"destination exists: $to"))
+    else
+      entries.get(normalizedFrom) match
+        case Some(entry) =>
+          removeEntry(normalizedFrom)
+          entries.update(normalizedTo, entry)
+          Right(())
+        case None        => Left(FsFailure(normalizedFrom))
 
   def sameFile(a: String, b: String): FsResult[Boolean] =
     Right(normalize(a) == normalize(b))
